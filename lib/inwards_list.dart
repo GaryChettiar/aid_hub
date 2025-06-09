@@ -594,39 +594,14 @@ Future<void> uploadDescReferenceExcelToFirestore() async {
                 },
               ),
               SizedBox(width: 16),
-              ElevatedButton.icon(
-                icon: Icon(Icons.upload),
-                label: Text('Upload Sender Excel'),
-                onPressed: uploadSenderExcelToFirestore,
-              ),
-              SizedBox(width: 16),
+             
              
               
               
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              ElevatedButton.icon(
-                icon: Icon(Icons.upload),
-                label: Text('Upload Description Excel'),
-                onPressed: uploadDescriptionExcelToFirestore,
-              ),
-              SizedBox(width: 16),
-              ElevatedButton.icon(
-                icon: Icon(Icons.upload),
-                label: Text('Upload Desc Reference Excel'),
-                onPressed: uploadDescReferenceExcelToFirestore,
-              ),
-            ],
-          ),
-        ),
+        
           
 
           Expanded(
