@@ -388,11 +388,11 @@ Future<void> _fetchDescReferences() async {
       List<Map<String, String>> items = snapshot.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
         return {
-          'code': (data['code'] ?? '').toString(),
-          'description': (data['description'] ?? '').toString(),
+          'name': (data['name'] ?? '').toString(),
+          'desc': (data['desc'] ?? '').toString(),
         };
       }).toList();
-    items.add({'code': 'Other', 'description': 'Other'});
+    items.add({'name': 'Other', 'desc': 'Other'});
       setState(() {
         _descriptionItems = items;
         _isLoadingDescriptions = false;
@@ -523,14 +523,14 @@ Future<void> launchEmail({
         if (_selectedSenderCode == "Other") {
           await FirebaseFirestore.instance.collection('senders').add({
             'code': _newSenderCodeController.text.trim(),
-            'details': _newSenderDetailsController.text.trim(),
+            'name': _newSenderDetailsController.text.trim(),
             'email': _newSenderEmailController.text.trim(),
           });
         }
         if (_selectedDescriptionCode == "Other") {
           await FirebaseFirestore.instance.collection('descriptions').add({
-            'code': _newDescriptionCodeController.text.trim(),
-            'description': _newDescriptionDetailsController.text.trim(),
+            'name': _newDescriptionCodeController.text.trim(),
+            'desc': _newDescriptionDetailsController.text.trim(),
           });
         }
         if (_selectedDescReference == "Other") {
