@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "221687267179",
+    "project_id": "aidhub-e720d",
+    "storage_bucket": "aidhub-e720d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:221687267179:android:fa0499b975c374f6e9d62e",
+        "android_client_info": {
+          "package_name": "com.example.finance_manager"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBuGCfOR0xDiIsX_APOA_F8yAt-CKusaY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
