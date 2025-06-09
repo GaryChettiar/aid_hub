@@ -342,10 +342,10 @@ Future<String> getSenderEmail(String senderCode) async {
         final data = doc.data() as Map<String, dynamic>;
         return {
           'code': (data['code'] ?? '').toString(),
-          'details': (data['details'] ?? '').toString(),
+          'name': (data['name'] ?? '').toString(),
         };
       }).toList();
-    items.add({'code': 'Other', 'details': 'Other'});
+    items.add({'code': 'Other', 'name': 'Other'});
       setState(() {
         _senderItems = items;
         _isLoadingSenders = false;
@@ -837,7 +837,7 @@ Future<void> launchEmail({
                             setState(() async {
                               if (value == "Other") {
                                 _selectedSenderCode = value;
-                                _senderNameController.text =
+                                _newSenderDetailsController.text =
                                   _senderItems.firstWhere((code) => code['code'] == value)['name'] ?? '';
                               } else  {
                                 _selectedSenderCode = value;
