@@ -804,54 +804,54 @@ Future<void> launchEmail({
                   children: [
                   Expanded(
                     child: Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    Text(
-      "Select Sender Code", // Label above the dropdown
-      style: TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-      ),
-    ),
-    SizedBox(height: 8), // Spacing between label and dropdown
-    DropdownButtonFormField<String>(
-      isExpanded: true,
-      value: _selectedSenderCode,
-      decoration: InputDecoration(
-        labelText: "Sender Code",
-        filled: true,
-        fillColor: Colors.grey.shade100,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      ),
-      items: _senderItems.map((code) {
-        return DropdownMenuItem<String>(
-          value: code['code'],
-          child: Text(code['code'] ?? ''),
-        );
-      }).toList(),
-      onChanged: (value)  {
-        setState(() async {
-          if (value == "Other") {
-            _selectedSenderCode = value;
-            _senderNameController.text =
-              _senderItems.firstWhere((code) => code['code'] == value)['details'] ?? '';
-          } else  {
-            _selectedSenderCode = value;
-            _senderNameController.text =
-              _senderItems.firstWhere((code) => code['code'] == value)['details'] ?? '';
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Select Sender Code", // Label above the dropdown
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 8), // Spacing between label and dropdown
+                        DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          value: _selectedSenderCode,
+                          decoration: InputDecoration(
+                            labelText: "Sender Code",
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                          ),
+                          items: _senderItems.map((code) {
+                            return DropdownMenuItem<String>(
+                              value: code['code'],
+                              child: Text(code['code'] ?? ''),
+                            );
+                          }).toList(),
+                          onChanged: (value)  {
+                            setState(() async {
+                              if (value == "Other") {
+                                _selectedSenderCode = value;
+                                _senderNameController.text =
+                                  _senderItems.firstWhere((code) => code['code'] == value)['details'] ?? '';
+                              } else  {
+                                _selectedSenderCode = value;
+                                _senderNameController.text =
+                                  _senderItems.firstWhere((code) => code['code'] == value)['details'] ?? '';
 
-              _newSenderEmailController.text = await getSenderEmail(value!);
-          }
-        });
-      },
-      validator: (value) =>
-          value == null ? 'Please select a sender code' : null,
-    ),
-  ],
+                                  _newSenderEmailController.text = await getSenderEmail(value!);
+                              }
+                            });
+                          },
+                          validator: (value) =>
+                              value == null ? 'Please select a sender code' : null,
+                        ),
+                            ],
 )
 
                   ),
@@ -887,15 +887,15 @@ Future<void> launchEmail({
                           ),
                           items: _descriptionItems.map((code) {
                             return DropdownMenuItem<String>(
-                              value: code['code'],
-                              child: Text(code['code'] ?? ''),
+                              value: code['name'],
+                              child: Text(code['name'] ?? ''),
                             );
                           }).toList(),
                           onChanged: (value) {
                             setState(() {
                               _selectedDescriptionCode = value;
                               _descriptionController.text = _descriptionItems
-                                      .firstWhere((code) => code['code'] == value)['description'] ??
+                                      .firstWhere((code) => code['name'] == value)['desc'] ??
                                   '';
                             });
                           },
