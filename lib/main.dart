@@ -838,11 +838,11 @@ Future<void> launchEmail({
                               if (value == "Other") {
                                 _selectedSenderCode = value;
                                 _senderNameController.text =
-                                  _senderItems.firstWhere((code) => code['code'] == value)['details'] ?? '';
+                                  _senderItems.firstWhere((code) => code['code'] == value)['name'] ?? '';
                               } else  {
                                 _selectedSenderCode = value;
                                 _senderNameController.text =
-                                  _senderItems.firstWhere((code) => code['code'] == value)['details'] ?? '';
+                                  _senderItems.firstWhere((code) => code['code'] == value)['name'] ?? '';
 
                                   _newSenderEmailController.text = await getSenderEmail(value!);
                               }
