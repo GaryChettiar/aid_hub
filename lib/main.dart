@@ -31,7 +31,7 @@ class AidHubApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'AidHub - New Request',
+      title: 'AOB Finance',
       theme: ThemeData(fontFamily: 'Inter'),
       home: Dashboard(),
     );
