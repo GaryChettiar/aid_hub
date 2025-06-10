@@ -496,287 +496,285 @@ Future<void> launchEmail({
       Center(
         child: CircularProgressIndicator()
       ):
+       Padding(
+         padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 30.0),
+         child: SingleChildScrollView(
+           child: Form(
+             key: _formKey,
+             child: Column(
+               crossAxisAlignment: CrossAxisAlignment.start,
+               children: [
+                 Text("New Request", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                 SizedBox(height: 10),
+             
+                 
+                 SizedBox(height: 30),
+             
+                 Text("Request Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
+                 SizedBox(height: 10),
+             
+                 Text("Inward Number",
+                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF212529))),
+                 SizedBox(height: 5),
+                 TextFormField(
+                   readOnly: true,
+                   controller: _inwardNoController,
+                   decoration: InputDecoration(
+                     filled: true,
+                     fillColor: Colors.grey.shade300,
+                     border: OutlineInputBorder(borderSide: BorderSide.none, borderRadius: BorderRadius.circular(8)),
+                   ),
+                 ),
+                 SizedBox(height: 15),
+             
+                 _buildRow([
+                   _buildField("Received By", controller: _receivedByController),
+                   _buildField("Trust Name", controller: _trustNameController),
+                 ]),
+                 SizedBox(height: 15),
+             
+                 
+                 
+             
+                 // Dropdowns for Sender Code and Description Code
+               Row(
+             children: [
+       /// Sender Search Field
        Expanded(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 30.0),
-          child: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("New Request", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-                  SizedBox(height: 10),
-      
-                  
-                  SizedBox(height: 30),
-      
-                  Text("Request Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
-                  SizedBox(height: 10),
-      
-                  Text("Inward Number",
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF212529))),
-                  SizedBox(height: 5),
-                  TextFormField(
-                    readOnly: true,
-                    controller: _inwardNoController,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.grey.shade300,
-                      border: OutlineInputBorder(borderSide: BorderSide.none, borderRadius: BorderRadius.circular(8)),
-                    ),
-                  ),
-                  SizedBox(height: 15),
-      
-                  _buildRow([
-                    _buildField("Received By", controller: _receivedByController),
-                    _buildField("Trust Name", controller: _trustNameController),
-                  ]),
-                  SizedBox(height: 15),
-      
-                  
-                  
-      
-                  // Dropdowns for Sender Code and Description Code
-                Row(
-      children: [
-        /// Sender Search Field
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("Search Sender Name",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              SizedBox(height: 8),
-              TypeAheadField<Map<String, String>>(
-                suggestionsCallback: (pattern) {
-                  return _senderItems
-                      .where((item) => item['name']!
-                          .toLowerCase()
-                          .contains(pattern.toLowerCase()))
-                      .toList();
-                },
-                itemBuilder: (context, suggestion) {
-                  return ListTile(
-                    title: Text(suggestion['name'] ?? ''),
-                    subtitle: Text('Code: ${suggestion['code'] ?? ''}'),
-                  );
-                },
-                onSelected: (suggestion) async {
-                  _senderNameController.text = suggestion['name']!;
-                  setState(() {
-                    _selectedSenderCode = suggestion['code'];
-                    
-                  });
-                  String email = await getSenderEmail(suggestion['code']!);
-                  print("Sender Email: $email");
-                },
-                builder: (context, controller, focusNode) {
-                  return TextFormField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    decoration: InputDecoration(
-                      labelText: 'Sender Name',
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                                    border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
-
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                    ),
-                    validator: (value) =>
-                        value == null || value.isEmpty ? 'Required' : null,
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-
-        SizedBox(width: 20),
-
-        /// Description Search Field
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("Search Description Name",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              SizedBox(height: 8),
-              TypeAheadField<Map<String, String>>(
-                suggestionsCallback: (pattern) {
-                  return _descriptionItems
-                      .where((item) => item['desc']!
-                          .toLowerCase()
-                          .contains(pattern.toLowerCase()))
-                      .toList();
-                },
-                itemBuilder: (context, suggestion) {
-                  return ListTile(
-                    title: Text(suggestion['desc'] ?? ''),
-                    subtitle: Text('Code: ${suggestion['name'] ?? ''}'),
-                  );
-                },
-                onSelected: (suggestion) {
-                  _descriptionController.text = suggestion['desc']!;
-                  setState(() {
-                    _selectedDescriptionCode = suggestion['name'];
-                  });
-                },
-                builder: (context, controller, focusNode) {
-                  return TextFormField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    decoration: InputDecoration(
-                      labelText: 'Description Name',
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                                    border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
-
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                    ),
-                    validator: (value) =>
-                        value == null || value.isEmpty ? 'Required' : null,
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-
-                  _selectedSenderCode == "Other"?
-                  _buildRow([
-                    
-                     _buildField("Sender Code", controller: _newSenderCodeController),
-                     _buildField("Sender Name", controller: _newSenderDetailsController), 
-                       _buildField("Sender Email", controller: _newSenderEmailController),
-                  ]): SizedBox(width: 20),
-                  SizedBox(height: 15),
-                  _selectedDescriptionCode == "Other"?  
-                  _buildRow([
-                      _buildField("Description Code", controller: _newDescriptionCodeController),
-                    _buildField("Description", controller: _newDescriptionDetailsController),  
-                  ]): SizedBox(width: 20),
-                  SizedBox(height: 15),
-                  
-                  SizedBox(height: 15),
-      
-                  _buildField("Description", controller: _descriptionController),
-                  SizedBox(height: 15),
-      
-                  _buildRow([
-                    _buildField("Sender Name", controller: _senderNameController),
-                    _buildField("Amount", controller: _amountController),
-                  ]),
-                  SizedBox(height: 15),
-      Text("Requester Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
-      SizedBox(height: 10),
-      
-      
-      
-                  _buildRow([
-                    _buildField("Cheque / Transaction No.", controller: _chequeTransactionNoController),
-                    _buildField("Bill No", controller: _billNoController),
-                  ]),
-                  SizedBox(height: 15),
-      
-                  _buildRow([
-                    _buildField("Bill Reference", controller: _billReferenceController),
-                   Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("Search Description Reference",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              SizedBox(height: 8),
-              TypeAheadField<Map<String, String>>(
-                suggestionsCallback: (pattern) {
-                  return _descReferenceItems
-                      .where((item) => item['value']!
-                          .toLowerCase()
-                          .contains(pattern.toLowerCase()))
-                      .toList();
-                },
-                itemBuilder: (context, suggestion) {
-                  return ListTile(
-                    title: Text(suggestion['value'] ?? ''),
-                    // subtitle: Text('Code: ${suggestion['name'] ?? ''}'),
-                  );
-                },
-                onSelected: (suggestion) {
-                  _descriptionReferenceController.text = suggestion['value']!;
-                  setState(() {
-                    _selectedDescReference = suggestion['value'];
-                  });
-                },
-                builder: (context, controller, focusNode) {
-                  return TextFormField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    decoration: InputDecoration(
-                      labelText: 'Description Reference',
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                                    border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
-
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                    ),
-                    validator: (value) =>
-                        value == null || value.isEmpty ? 'Required' : null,
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      
-                  ]),
-                  SizedBox(height: 15),
-      
-                  _selectedDescReference == "Other"?
-                  _buildRow([
-                    _buildField("Description Reference", controller: _descriptionReferenceController),
-                  ]): SizedBox(width: 20),
-                  SizedBox(height: 15),
-                  _buildField("Comments", controller: _commentsController),
-                  SizedBox(height: 15),
-      
-                  _buildField("Additional Information", controller: _additionalInfoController),
-                  SizedBox(height: 15),
-      
-                  _buildRow([
-                    _buildField("Handed Over To", controller: _handedOverToController),
-                    _buildStatusRadio(),
-                  ]),
-                  SizedBox(height: 15),
-      
-                  _buildRow([
-                  
-                    _buildField("Remarks", controller: _remarksController),
-                  ]),
-                  SizedBox(height: 30),
-      
-                  Center(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF212529),
-                        padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onPressed: _submitRequest,
-                      child: Text("Submit", style: TextStyle(fontSize: 18, color: Colors.white)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+         child: Column(
+           crossAxisAlignment: CrossAxisAlignment.start,
+           children: [
+             Text("Search Sender Name",
+                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+             SizedBox(height: 8),
+             TypeAheadField<Map<String, String>>(
+               suggestionsCallback: (pattern) {
+                 return _senderItems
+                     .where((item) => item['name']!
+                         .toLowerCase()
+                         .contains(pattern.toLowerCase()))
+                     .toList();
+               },
+               itemBuilder: (context, suggestion) {
+                 return ListTile(
+                   title: Text(suggestion['name'] ?? ''),
+                   subtitle: Text('Code: ${suggestion['code'] ?? ''}'),
+                 );
+               },
+               onSelected: (suggestion) async {
+                 _senderNameController.text = suggestion['name']!;
+                 setState(() {
+                   _selectedSenderCode = suggestion['code'];
+                   
+                 });
+                 String email = await getSenderEmail(suggestion['code']!);
+                 print("Sender Email: $email");
+               },
+               builder: (context, controller, focusNode) {
+                 return TextFormField(
+                   controller: controller,
+                   focusNode: focusNode,
+                   decoration: InputDecoration(
+                     labelText: 'Sender Name',
+                     filled: true,
+                     fillColor: Colors.grey.shade100,
+                                   border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
+       
+                     contentPadding:
+                         EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                   ),
+                   validator: (value) =>
+                       value == null || value.isEmpty ? 'Required' : null,
+                 );
+               },
+             ),
+           ],
+         ),
+       ),
+       
+       SizedBox(width: 20),
+       
+       /// Description Search Field
+       Expanded(
+         child: Column(
+           crossAxisAlignment: CrossAxisAlignment.start,
+           children: [
+             Text("Search Description Name",
+                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+             SizedBox(height: 8),
+             TypeAheadField<Map<String, String>>(
+               suggestionsCallback: (pattern) {
+                 return _descriptionItems
+                     .where((item) => item['desc']!
+                         .toLowerCase()
+                         .contains(pattern.toLowerCase()))
+                     .toList();
+               },
+               itemBuilder: (context, suggestion) {
+                 return ListTile(
+                   title: Text(suggestion['desc'] ?? ''),
+                   subtitle: Text('Code: ${suggestion['name'] ?? ''}'),
+                 );
+               },
+               onSelected: (suggestion) {
+                 _descriptionController.text = suggestion['desc']!;
+                 setState(() {
+                   _selectedDescriptionCode = suggestion['name'];
+                 });
+               },
+               builder: (context, controller, focusNode) {
+                 return TextFormField(
+                   controller: controller,
+                   focusNode: focusNode,
+                   decoration: InputDecoration(
+                     labelText: 'Description Name',
+                     filled: true,
+                     fillColor: Colors.grey.shade100,
+                                   border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
+       
+                     contentPadding:
+                         EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                   ),
+                   validator: (value) =>
+                       value == null || value.isEmpty ? 'Required' : null,
+                 );
+               },
+             ),
+           ],
+         ),
+       ),
+             ],
+           ),
+       
+                 _selectedSenderCode == "Other"?
+                 _buildRow([
+                   
+                    _buildField("Sender Code", controller: _newSenderCodeController),
+                    _buildField("Sender Name", controller: _newSenderDetailsController), 
+                      _buildField("Sender Email", controller: _newSenderEmailController),
+                 ]): SizedBox(width: 20),
+                 SizedBox(height: 15),
+                 _selectedDescriptionCode == "Other"?  
+                 _buildRow([
+                     _buildField("Description Code", controller: _newDescriptionCodeController),
+                   _buildField("Description", controller: _newDescriptionDetailsController),  
+                 ]): SizedBox(width: 20),
+                 SizedBox(height: 15),
+                 
+                 SizedBox(height: 15),
+             
+                 _buildField("Description", controller: _descriptionController),
+                 SizedBox(height: 15),
+             
+                 _buildRow([
+                   _buildField("Sender Name", controller: _senderNameController),
+                   _buildField("Amount", controller: _amountController),
+                 ]),
+                 SizedBox(height: 15),
+             Text("Requester Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
+             SizedBox(height: 10),
+             
+             
+             
+                 _buildRow([
+                   _buildField("Cheque / Transaction No.", controller: _chequeTransactionNoController),
+                   _buildField("Bill No", controller: _billNoController),
+                 ]),
+                 SizedBox(height: 15),
+             
+                 _buildRow([
+                   _buildField("Bill Reference", controller: _billReferenceController),
+                  Expanded(
+         child: Column(
+           crossAxisAlignment: CrossAxisAlignment.start,
+           children: [
+             Text("Search Description Reference",
+                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+             SizedBox(height: 8),
+             TypeAheadField<Map<String, String>>(
+               suggestionsCallback: (pattern) {
+                 return _descReferenceItems
+                     .where((item) => item['value']!
+                         .toLowerCase()
+                         .contains(pattern.toLowerCase()))
+                     .toList();
+               },
+               itemBuilder: (context, suggestion) {
+                 return ListTile(
+                   title: Text(suggestion['value'] ?? ''),
+                   // subtitle: Text('Code: ${suggestion['name'] ?? ''}'),
+                 );
+               },
+               onSelected: (suggestion) {
+                 _descriptionReferenceController.text = suggestion['value']!;
+                 setState(() {
+                   _selectedDescReference = suggestion['value'];
+                 });
+               },
+               builder: (context, controller, focusNode) {
+                 return TextFormField(
+                   controller: controller,
+                   focusNode: focusNode,
+                   decoration: InputDecoration(
+                     labelText: 'Description Reference',
+                     filled: true,
+                     fillColor: Colors.grey.shade100,
+                                   border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
+       
+                     contentPadding:
+                         EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                   ),
+                   validator: (value) =>
+                       value == null || value.isEmpty ? 'Required' : null,
+                 );
+               },
+             ),
+           ],
+         ),
+       ),
+             
+                 ]),
+                 SizedBox(height: 15),
+             
+                 _selectedDescReference == "Other"?
+                 _buildRow([
+                   _buildField("Description Reference", controller: _descriptionReferenceController),
+                 ]): SizedBox(width: 20),
+                 SizedBox(height: 15),
+                 _buildField("Comments", controller: _commentsController),
+                 SizedBox(height: 15),
+             
+                 _buildField("Additional Information", controller: _additionalInfoController),
+                 SizedBox(height: 15),
+             
+                 _buildRow([
+                   _buildField("Handed Over To", controller: _handedOverToController),
+                   _buildStatusRadio(),
+                 ]),
+                 SizedBox(height: 15),
+             
+                 _buildRow([
+                 
+                   _buildField("Remarks", controller: _remarksController),
+                 ]),
+                 SizedBox(height: 30),
+             
+                 Center(
+                   child: ElevatedButton(
+                     style: ElevatedButton.styleFrom(
+                       backgroundColor: Color(0xFF212529),
+                       padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                     ),
+                     onPressed: _submitRequest,
+                     child: Text("Submit", style: TextStyle(fontSize: 18, color: Colors.white)),
+                   ),
+                 ),
+               ],
+             ),
+           ),
+         ),
+       ),
     );
 
   }
