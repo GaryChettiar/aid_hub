@@ -645,7 +645,10 @@ Future<void> launchEmail({
             
                 _buildRow([
                   _buildField("Bill Reference", controller: _billReferenceController),
-                 Expanded(
+                 
+            
+                ]),
+                Expanded(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -693,8 +696,6 @@ Future<void> launchEmail({
           ],
         ),
       ),
-            
-                ]),
                 SizedBox(height: 15),
             
                 _selectedDescReference == "Other"?

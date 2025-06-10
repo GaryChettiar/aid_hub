@@ -671,9 +671,7 @@ Future<void> launchEmail({
                    _buildField("Amount", controller: _amountController),
                  ]),
                  SizedBox(height: 15),
-             Text("Requester Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
-             SizedBox(height: 10),
-             
+         
              
              
                  _buildRow([
@@ -684,7 +682,10 @@ Future<void> launchEmail({
              
                  _buildRow([
                    _buildField("Bill Reference", controller: _billReferenceController),
-                  Expanded(
+                  
+             
+                 ]),
+                 Expanded(
          child: Column(
            crossAxisAlignment: CrossAxisAlignment.start,
            children: [
@@ -732,8 +733,6 @@ Future<void> launchEmail({
            ],
          ),
        ),
-             
-                 ]),
                  SizedBox(height: 15),
              
                  _selectedDescReference == "Other"?
