@@ -11,27 +11,52 @@ class Contacts extends StatefulWidget {
 
 class _ContactsState extends State<Contacts> {
     final TextEditingController _nameController=new TextEditingController();
-    List<QueryDocumentSnapshot > _lastFilteredDocs=[];
+    List<Map<String, dynamic>>  _lastFilteredDocs=[];
+    
     void _performSearch() async {
-    if( _nameController.text.isNotEmpty){
-  final snapshot = await FirebaseFirestore.instance.collection('senders').get();
-  final docs = snapshot.docs;
+  if (_nameController.text.isNotEmpty) {
+    try {
+      final snapshot = await FirebaseFirestore.instance.collection('senders').get();
+      final docs = snapshot.docs;
 
-  List<QueryDocumentSnapshot> filteredDocs = docs.where((doc) {
-    final data = doc.data() as Map<String, dynamic>;
-  
+      List<Map<String, dynamic>> matchedSenders = [];
 
-    final senderName = data['name'] as String?;
+      for (var doc in docs) {
+        if (doc.id == 'sendersMeta') continue; // Skip metadata document
 
-    return 
-        _matchesSenderSearch(senderName);
-  }).toList();
+        final data = doc.data() as Map<String, dynamic>;
 
-  setState(() {
-    _lastFilteredDocs = filteredDocs;
-  });
+        int totalFields = data.length;
+        int count = totalFields ~/ 4;
+
+        for (int i = 1; i <= count; i++) {
+          String? name = data['sname$i']?.toString();
+          String? code = data['scode$i']?.toString();
+          String? email = data['semail$i']?.toString();
+          String? contact = data['scontact$i']?.toString();
+
+          if (name != null && _matchesSenderSearch(name)) {
+            matchedSenders.add({
+              'code': code,
+              'name': name,
+              'email': email,
+              'contact': contact,
+              'batchId':doc.id,
+              'index': i.toString(),
+            });
+          }
+        }
+      }
+
+      setState(() {
+        _lastFilteredDocs = matchedSenders;
+      });
+    } catch (e) {
+      print('Error fetching sender data: $e');
     }
+  }
 }
+
      bool _matchesSenderSearch(String? senderName) {
     if (_nameController.text.isEmpty) return true;
     return senderName?.toLowerCase().contains(_nameController.text.toLowerCase()) ?? false;
@@ -91,52 +116,61 @@ class _ContactsState extends State<Contacts> {
                   child: _lastFilteredDocs.isEmpty
                 ? Center(child: Text((_nameController.text.isEmpty)?"":'No data matches the filter'))
                 : GridView.builder(
-          itemCount: _lastFilteredDocs.length * 4, // 4 fields per item
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4, // 4 columns: code, name, email, contact
-            childAspectRatio: 5, // Adjust for height/width ratio
-            mainAxisSpacing: 0,
-            crossAxisSpacing: 0,
+  itemCount: _lastFilteredDocs.length * 4, // Each sender has 4 fields
+  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: 4, // Columns: code, name, email, contact
+    childAspectRatio: 5,
+    mainAxisSpacing: 0,
+    crossAxisSpacing: 0,
+  ),
+  itemBuilder: (context, index) {
+    final rowIndex = index ~/ 4;
+    final columnIndex = index % 4;
+
+    // Access sender map directly
+    final sender = _lastFilteredDocs[rowIndex];
+
+    String content = '';
+    switch (columnIndex) {
+      case 0:
+        content = sender['code'] ?? '';
+        break;
+      case 1:
+        content = sender['name'] ?? '';
+        break;
+      case 2:
+        content = sender['email'] ?? '';
+        break;
+      case 3:
+        content = sender['contact'] ?? '';
+        break;
+    }
+
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ContactDetails(code: sender['index'],batchId: sender['batchId'],),
           ),
-          itemBuilder: (context, index) {
-            final rowIndex = index ~/ 4;
-            final columnIndex = index % 4;
-        
-            final data = _lastFilteredDocs[rowIndex].data() as Map<String, dynamic>;
-        
-            String content = '';
-            switch (columnIndex) {
-        case 0:
-          content = data['code'] ?? '';
-          break;
-        case 1:
-          content = data['name'] ?? '';
-          break;
-        case 2:
-          content = data['email'] ?? '';
-          break;
-        case 3:
-          content = data['contact'] ?? '';
-          break;
-            }
-        
-            return InkWell(
-        onTap: () {
-          Navigator.push(context, MaterialPageRoute(builder: (context)=> ContactDetails(code: data['code'])));
-        },
-        child: Container(
-          decoration: BoxDecoration(
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
           color: rowIndex.isEven ? Colors.grey.shade100 : Colors.white,
-        
-            border: Border.all(color: Colors.black,width: 1),
-          ),
-          padding: EdgeInsets.all(8),
-          alignment: Alignment.centerLeft,
-          child: Text(content, overflow: TextOverflow.ellipsis),
+          border: Border.all(color: Colors.black, width: 1),
         ),
-            );
-          },
-        )
+        padding: const EdgeInsets.all(8),
+        alignment: Alignment.centerLeft,
+        child: Text(
+          content,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  },
+)
+
         
                 ),
           ],

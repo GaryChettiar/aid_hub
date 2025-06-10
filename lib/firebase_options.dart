@@ -47,28 +47,28 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCwhKqt957EAXnOccJpkb8UpoNADnP_tHg',
-    appId: '1:221687267179:web:f647c5a77f24b932e9d62e',
-    messagingSenderId: '221687267179',
-    projectId: 'aidhub-e720d',
-    authDomain: 'aidhub-e720d.firebaseapp.com',
-    storageBucket: 'aidhub-e720d.firebasestorage.app',
+    apiKey: 'AIzaSyASjLmgiwzqO-hF29ZFw-PtfcVvCW023Hs',
+    appId: '1:870491136725:web:fb8748f00d3c700ee9785c',
+    messagingSenderId: '870491136725',
+    projectId: 'aob-finance',
+    authDomain: 'aob-finance.firebaseapp.com',
+    storageBucket: 'aob-finance.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCBuGCfOR0xDiIsX_APOA_F8yAt-CKusaY',
-    appId: '1:221687267179:android:fa0499b975c374f6e9d62e',
-    messagingSenderId: '221687267179',
-    projectId: 'aidhub-e720d',
-    storageBucket: 'aidhub-e720d.firebasestorage.app',
+    apiKey: 'AIzaSyDuGU5Ms5IARqXMSaDgz5heyH745jvQrX8',
+    appId: '1:870491136725:android:31c859d6c7de9359e9785c',
+    messagingSenderId: '870491136725',
+    projectId: 'aob-finance',
+    storageBucket: 'aob-finance.firebasestorage.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyCwhKqt957EAXnOccJpkb8UpoNADnP_tHg',
-    appId: '1:221687267179:web:cd0f386864b43e74e9d62e',
-    messagingSenderId: '221687267179',
-    projectId: 'aidhub-e720d',
-    authDomain: 'aidhub-e720d.firebaseapp.com',
-    storageBucket: 'aidhub-e720d.firebasestorage.app',
+    apiKey: 'AIzaSyASjLmgiwzqO-hF29ZFw-PtfcVvCW023Hs',
+    appId: '1:870491136725:web:f13a249f531b4ad7e9785c',
+    messagingSenderId: '870491136725',
+    projectId: 'aob-finance',
+    authDomain: 'aob-finance.firebaseapp.com',
+    storageBucket: 'aob-finance.firebasestorage.app',
   );
 }

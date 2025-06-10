@@ -64,78 +64,121 @@ final _newSenderEmailController = TextEditingController();
   }
   
   
+Future<void> _fetchSenders() async {
+  setState(() {
+    _isLoadingSenders = true;
+  });
 
- Future<void> _fetchSenders() async {
-    try {
-      QuerySnapshot snapshot =
-          await FirebaseFirestore.instance.collection('senders').get();
+  try {
+    final snapshot = await FirebaseFirestore.instance.collection('senders').get();
+    final List<Map<String, String>> items = [];
 
-      List<Map<String, String>> items = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return {
-          'code': (data['code'] ?? '').toString(),
-          'name': (data['name'] ?? '').toString(),
-        };
-      }).toList();
+    for (var doc in snapshot.docs) {
+      if (doc.id == 'senderMeta') continue; // Skip metadata doc
+      final data = doc.data() as Map<String, dynamic>;
+
+      int i = 1;
+      while (data.containsKey('scode$i') && data.containsKey('sname$i')) {
+        items.add({
+          'code': data['scode$i']?.toString() ?? '',
+          'name': data['sname$i']?.toString() ?? '',
+        });
+        i++;
+      }
+    }
+
+    // Add "Other" option at end
     items.add({'code': 'Other', 'name': 'Other'});
-      setState(() {
-        _senderItems = items;
-        _isLoadingSenders = false;
-      });
-    } catch (e) {
-      print('Error fetching senders: $e');
-      setState(() {
-        _isLoadingSenders = false;
-      });
-    }
+
+    setState(() {
+      _senderItems = items;
+      _isLoadingSenders = false;
+    });
+  } catch (e) {
+    print('Error fetching senders: $e');
+    setState(() {
+      _isLoadingSenders = false;
+    });
   }
+}
 Future<void> _fetchDescReferences() async {
-    try {
-      QuerySnapshot snapshot =
-          await FirebaseFirestore.instance.collection('descReferences').get();
+  setState(() {
+    _isLoadingDescReferences = true;
+  });
 
-      List<Map<String, String>> descReferenceItems = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return {
-          'value': (data['value'] ?? '').toString(),
-        };
-      }).toList();
+  try {
+    final snapshot =
+        await FirebaseFirestore.instance.collection('descref').get();
+
+    final List<Map<String, String>> descReferenceItems = [];
+
+    for (var doc in snapshot.docs) {
+      if (doc.id == 'descrefMeta') continue; // Skip metadata document
+
+      final data = doc.data() as Map<String, dynamic>;
+
+      int i = 1;
+      while (data.containsKey('ref$i')) {
+        final value = data['ref$i']?.toString() ?? '';
+        if (value.isNotEmpty) {
+          descReferenceItems.add({'value': value});
+        }
+        i++;
+      }
+    }
+
+    // Add fallback option
     descReferenceItems.add({'value': 'Other'});
-      setState(() {
-        _descReferenceItems = descReferenceItems;
-        _isLoadingDescReferences = false;
-      });
-    } catch (e) {
-      print('Error fetching descreferences: $e');
-      setState(() {
-        _isLoadingDescReferences = false;
-      });
-    }
-  }
-  Future<void> _fetchDescriptions() async {
-    try {
-      QuerySnapshot snapshot =
-          await FirebaseFirestore.instance.collection('descriptions').get();
 
-      List<Map<String, String>> items = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return {
-          'name': (data['name'] ?? '').toString(),
-          'desc': (data['desc'] ?? '').toString(),
-        };
-      }).toList();
-    items.add({'name': 'Other', 'desc': 'Other'});
-      setState(() {
-        _descriptionItems = items;
-        _isLoadingDescriptions = false;
-      });
-    } catch (e) {
-      print('Error fetching descriptions: $e');
-      setState(() {
-        _isLoadingDescriptions = false;
-      });
-    }
+    setState(() {
+      _descReferenceItems = descReferenceItems;
+      _isLoadingDescReferences = false;
+    });
+  } catch (e) {
+    print('Error fetching descReferences: $e');
+    setState(() {
+      _isLoadingDescReferences = false;
+    });
   }
+}
+
+  Future<void> _fetchDescriptions() async {
+  setState(() {
+    _isLoadingDescriptions = true;
+  });
+
+  try {
+    final snapshot = await FirebaseFirestore.instance.collection('descriptions').get();
+    final List<Map<String, String>> items = [];
+
+    for (var doc in snapshot.docs) {
+      if (doc.id == 'descMeta') continue; // Skip metadata document
+      final data = doc.data() as Map<String, dynamic>;
+
+      int i = 1;
+      while (data.containsKey('dcode$i') && data.containsKey('ddesc$i')) {
+        items.add({
+          'name': data['dcode$i']?.toString() ?? '',
+          'desc': data['ddesc$i']?.toString() ?? '',
+        });
+        i++;
+      }
+    }
+
+    // Optional: Add "Other" at end
+    items.add({'name': 'Other', 'desc': 'Other'});
+
+    setState(() {
+      _descriptionItems = items;
+      _isLoadingDescriptions = false;
+    });
+  } catch (e) {
+    print('Error fetching descriptions: $e');
+    setState(() {
+      _isLoadingDescriptions = false;
+    });
+  }
+}
 
 Future<void> _fetchInward() async{
   try {
@@ -161,6 +204,7 @@ _handedOverToController.text = _inward['handedOverTo'];
 _status = _inward['status'];
 _pendingFromDaysController.text = _inward['pendingFromDays'];
 _remarksController.text = _inward['remarks'];
+_descriptionReferenceController.text=_inward['descriptionReference'];
     });
     
   } catch (e) {
@@ -313,12 +357,12 @@ Future<void> launchEmail({
           TextFormField(
             controller: controller,
             readOnly: readOnly,
-            validator: (value) {
-              if (!readOnly && (value == null || value.isEmpty)) {
-                return 'Please enter $label';
-              }
-              return null;
-            },
+            // validator: (value) {
+            //   if (!readOnly && (value == null || value.isEmpty)) {
+            //     return 'Please enter $label';
+            //   }
+            //   return null;
+            // },
             decoration: InputDecoration(
               hintText: "Enter $label",
               filled: true,
@@ -341,12 +385,12 @@ Future<void> launchEmail({
             controller: controller,
             readOnly: true,
             onTap: onTap,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please select $label';
-              }
-              return null;
-            },
+            // validator: (value) {
+            //   if (value == null || value.isEmpty) {
+            //     return 'Please select $label';
+            //   }
+            //   return null;
+            // },
             decoration: InputDecoration(
               hintText: "Select $label",
               filled: true,
@@ -370,12 +414,12 @@ Future<void> launchEmail({
             controller: controller,
             readOnly: true,
             onTap: onTap,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please select $label';
-              }
-              return null;
-            },
+            // validator: (value) {
+            //   if (value == null || value.isEmpty) {
+            //     return 'Please select $label';
+            //   }
+            //   return null;
+            // },
             decoration: InputDecoration(
               hintText: "Select $label",
               filled: true,
@@ -510,6 +554,7 @@ Future<void> launchEmail({
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             SizedBox(height: 8),
             TypeAheadField<Map<String, String>>(
+              controller: _senderNameController,
               suggestionsCallback: (pattern) {
                 return _senderItems
                     .where((item) => item['name']!
@@ -565,6 +610,7 @@ Future<void> launchEmail({
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             SizedBox(height: 8),
             TypeAheadField<Map<String, String>>(
+              controller: _descriptionController,
               suggestionsCallback: (pattern) {
                 return _descriptionItems
                     .where((item) => item['desc']!
@@ -624,11 +670,8 @@ Future<void> launchEmail({
                 
                 SizedBox(height: 15),
             
-                _buildField("Description", controller: _descriptionController),
-                SizedBox(height: 15),
-            
                 _buildRow([
-                  _buildField("Sender Name", controller: _senderNameController),
+              
                   _buildField("Amount", controller: _amountController),
                 ]),
                 SizedBox(height: 15),
@@ -658,6 +701,7 @@ Future<void> launchEmail({
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                 SizedBox(height: 8),
                                 TypeAheadField<Map<String, String>>(
+                                  controller: _descriptionReferenceController,
                                   suggestionsCallback: (pattern) {
                     return _descReferenceItems
                         .where((item) => item['value']!
@@ -690,8 +734,8 @@ Future<void> launchEmail({
                         contentPadding:
                             EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                       ),
-                      validator: (value) =>
-                          value == null || value.isEmpty ? 'Required' : null,
+                      // validator: (value) =>
+                      //     value == null || value.isEmpty ? 'Required' : null,
                     );
                                   },
                                 ),
