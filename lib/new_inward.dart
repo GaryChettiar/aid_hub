@@ -685,54 +685,58 @@ Future<void> launchEmail({
                   
              
                  ]),
-                 Expanded(
-         child: Column(
-           crossAxisAlignment: CrossAxisAlignment.start,
-           children: [
-             Text("Search Description Reference",
-                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-             SizedBox(height: 8),
-             TypeAheadField<Map<String, String>>(
-               suggestionsCallback: (pattern) {
-                 return _descReferenceItems
-                     .where((item) => item['value']!
-                         .toLowerCase()
-                         .contains(pattern.toLowerCase()))
-                     .toList();
-               },
-               itemBuilder: (context, suggestion) {
-                 return ListTile(
-                   title: Text(suggestion['value'] ?? ''),
-                   // subtitle: Text('Code: ${suggestion['name'] ?? ''}'),
-                 );
-               },
-               onSelected: (suggestion) {
-                 _descriptionReferenceController.text = suggestion['value']!;
-                 setState(() {
-                   _selectedDescReference = suggestion['value'];
-                 });
-               },
-               builder: (context, controller, focusNode) {
-                 return TextFormField(
-                   controller: controller,
-                   focusNode: focusNode,
-                   decoration: InputDecoration(
-                     labelText: 'Description Reference',
-                     filled: true,
-                     fillColor: Colors.grey.shade100,
-                                   border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
-       
-                     contentPadding:
-                         EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                   ),
-                   validator: (value) =>
-                       value == null || value.isEmpty ? 'Required' : null,
-                 );
-               },
-             ),
-           ],
-         ),
-       ),
+                 Row(
+                   children: [
+                     Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text("Search Description Reference",
+                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                  SizedBox(height: 8),
+                                  TypeAheadField<Map<String, String>>(
+                                    suggestionsCallback: (pattern) {
+                     return _descReferenceItems
+                         .where((item) => item['value']!
+                             .toLowerCase()
+                             .contains(pattern.toLowerCase()))
+                         .toList();
+                                    },
+                                    itemBuilder: (context, suggestion) {
+                     return ListTile(
+                       title: Text(suggestion['value'] ?? ''),
+                       // subtitle: Text('Code: ${suggestion['name'] ?? ''}'),
+                     );
+                                    },
+                                    onSelected: (suggestion) {
+                     _descriptionReferenceController.text = suggestion['value']!;
+                     setState(() {
+                       _selectedDescReference = suggestion['value'];
+                     });
+                                    },
+                                    builder: (context, controller, focusNode) {
+                     return TextFormField(
+                       controller: controller,
+                       focusNode: focusNode,
+                       decoration: InputDecoration(
+                         labelText: 'Description Reference',
+                         filled: true,
+                         fillColor: Colors.grey.shade100,
+                                       border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
+                            
+                         contentPadding:
+                             EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                       ),
+                       validator: (value) =>
+                           value == null || value.isEmpty ? 'Required' : null,
+                     );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                   ],
+                 ),
                  SizedBox(height: 15),
              
                  _selectedDescReference == "Other"?
