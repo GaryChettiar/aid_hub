@@ -320,6 +320,7 @@ Future<void> launchEmail({
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Request submitted successfully!')),
           );
+          (data['senderEmail']=="")?{}:
           launchEmail(toEmail: _newSenderEmailController.text.trim(), subject: 'New Request', body: 'Request submitted successfully!');
           // sendFast2SMS(_requesterNameController.text , _inwardNoController.text, _requesterContactController.text);
           _formKey.currentState!.reset();
