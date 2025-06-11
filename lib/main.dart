@@ -384,7 +384,10 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
                 child: Text("Status",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,)),
               Expanded(
                 flex: 1,
-                child: Text("Handed Over To",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,))
+                child: Text("Handed Over To",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,)),
+                Expanded(
+                flex: 1,
+                child: Text("Remarks",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,))
             ],
           ):SizedBox.shrink(),
           Expanded(
@@ -432,6 +435,7 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
               color: data['status'] == "Pending" ? Colors.red : null,
             ),
             _buildCell(data['handedOverTo'] ?? ""),
+             _buildCell(data['remarks'] ?? ""),
           ],
         ),
       ),

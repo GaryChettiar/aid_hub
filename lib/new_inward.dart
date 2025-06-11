@@ -63,13 +63,52 @@ final _newSenderEmailController = TextEditingController();
     _fetchDescriptions();
     _fetchDescReferences();
   }
-Future<String> getSenderEmail(String senderCode) async {
-  final senderSnap = await FirebaseFirestore.instance.collection('senders').where('code', isEqualTo: senderCode).get();
-  if (senderSnap.docs.isNotEmpty) {
-    return senderSnap.docs.first.data()['email']?.toString() ?? '';
+  Future<String> getSenderEmailFromBatchedSenders(String senderCode) async {
+  final batchSnapshots = await FirebaseFirestore.instance.collection('senders').get();
+
+  for (var doc in batchSnapshots.docs) {
+    if (doc.id == 'sendersMeta') continue;
+
+    final data = doc.data();
+    int count = data.length ~/ 4;
+
+    for (int i = 1; i <= count; i++) {
+      if (data['scode$i'] == senderCode) {
+        return data['semail$i']?.toString() ?? '';
+      }
+    }
   }
   return '';
-}Future<void> _fetchSenders() async {
+}
+
+Future<String> getSenderEmail(String senderCode) async {
+  try {
+    final snapshot = await FirebaseFirestore.instance.collection('senders').get();
+
+    for (final doc in snapshot.docs) {
+      if (doc.id == 'sendersMeta') continue; // Skip metadata
+
+      final data = doc.data();
+
+      int totalFields = data.length;
+      int count = totalFields ~/ 4;
+
+      for (int i = 1; i <= count; i++) {
+        final code = data['scode$i']?.toString();
+        final email = data['semail$i']?.toString();
+
+        if (code == senderCode) {
+          return email ?? '';
+        }
+      }
+    }
+  } catch (e) {
+    print('Error fetching sender email: $e');
+  }
+
+  return '';
+}
+Future<void> _fetchSenders() async {
   setState(() {
     _isLoadingSenders = true;
   });
@@ -310,8 +349,9 @@ Future<void> launchEmail({
             ? _newSenderDetailsController.text.trim()
             : _senderNameController.text.trim(),
         'senderEmail': _selectedSenderCode == "Other"
-            ? _newSenderEmailController.text.trim()
-            : await getSenderEmail(_senderCodeController.text.trim()),
+    ? _newSenderEmailController.text.trim()
+    : await getSenderEmailFromBatchedSenders(senderCode!),
+
         'amount': _amountController.text.trim(),
         'chequeTransactionNo': _chequeTransactionNoController.text.trim(),
         'billNo': _billNoController.text.trim(),
@@ -379,7 +419,7 @@ Future<void> launchEmail({
 
       if (data['senderEmail'] != "") {
         launchEmail(
-          toEmail: _newSenderEmailController.text.trim(),
+          toEmail: data['senderEmail'].toString(),
           subject: 'New Request',
           body: 'Request submitted successfully!',
         );
