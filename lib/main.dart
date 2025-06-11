@@ -57,8 +57,8 @@ int _currentBatchIndex=1;
     
     
   }
-    void _performSearch({String status=""}) async {
-  if (status.isEmpty) return;
+    void _performSearch() async {
+  
 
   final batchSnapshots = await FirebaseFirestore.instance
       .collection('groupedInwards')
@@ -74,10 +74,14 @@ int _currentBatchIndex=1;
       final inwardData = entry.value as Map<String, dynamic>;
       final docStatus = (inwardData['status'] ?? '').toString();
 
-      if (status=="All"||docStatus == status) {
-        inwardData['inwardNo'] ??= inwardNo;
-        matchedInwards.add(inwardData);
-      }
+      if (_matchesStatus(docStatus) &&
+    _matchesInwardSearch(inwardNo) &&
+    _matchesSenderSearch(inwardData['senderName'] as String?)) {
+  inwardData['inwardNo'] ??= inwardNo;
+  matchedInwards.add(inwardData);
+}
+
+
     }
   }
 
@@ -143,6 +147,11 @@ setState(() {
     if (_nameController.text.isEmpty) return true;
     return senderName?.toLowerCase().contains(_nameController.text.toLowerCase()) ?? false;
   }
+  bool _matchesStatus(String? status) {
+  if (_selectedStatus == null || _selectedStatus == 'All') return true;
+  return status?.toLowerCase() == _selectedStatus!.toLowerCase();
+}
+
 String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
 
   @override
@@ -154,14 +163,18 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              Text('AOB',style: TextStyle(fontSize: 24,fontWeight: FontWeight.bold),),
-              SizedBox(width: 10,),
-              Text('Finance Office',style: TextStyle(fontSize: 24,fontWeight: FontWeight.bold),),
-            ],
+          Container(
+            color: const Color.fromARGB(61, 201, 201, 201),
+            child: Row(
+              
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.max,
+              children: [
+               Image.asset('logo.png',height: 120),
+                SizedBox(width: 10,),
+                Text('Finance Office',style: TextStyle(fontSize: 28,fontWeight: FontWeight.bold),),
+              ],
+            ),
           ),
           SizedBox(height: 50),
           Padding(
@@ -204,12 +217,12 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
                               border: OutlineInputBorder(
                                   borderRadius: BorderRadius.all(Radius.circular(50))),
                               suffixIcon: IconButton(
-                                onPressed: () => _performSearch(),
+                                onPressed: () => _performSearch,
                                 icon: Icon(Icons.search),
                               ),
                               hintText: "Search by Inward Number",
                             ),
-                            onSubmitted: (value) => _performSearch(),
+                            onSubmitted: (value) => _performSearch,
                           ),
                         ),
                         SizedBox(width: 10),
@@ -228,7 +241,7 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
                               hintText: "Search by Name",
                             ),
                             onSubmitted: (value) {
-                             _performSearch(status: _selectedStatus!);
+                             _performSearch;
                             },
                           ),
                         ),
@@ -261,7 +274,7 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
                                     setState(() {
                                       _selectedStatus = value;
                                     });
-                                    _performSearch(status: value!);
+                                    _performSearch;
                                   },
                                 ),
                         ),

@@ -17,6 +17,28 @@ class _ContactDetailsState extends State<ContactDetails> {
   final TextEditingController _contactController = new TextEditingController();
  Map<String,dynamic> sender = Map();
  bool _isLoading=true;
+ Future<void> deleteSender(String batchId, String index) async {
+  final docRef = FirebaseFirestore.instance.collection('senders').doc(batchId);
+
+  try {
+    await docRef.update({
+      'scode$index': FieldValue.delete(),
+      'sname$index': FieldValue.delete(),
+      'semail$index': FieldValue.delete(),
+      'scontact$index': FieldValue.delete(),
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Sender deleted successfully')),
+    );
+  } catch (e) {
+    print('Error deleting sender: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to delete sender: $e')),
+    );
+  }
+}
+
 Future<void> _loadSender() async {
     final doc = await FirebaseFirestore.instance.collection('senders').doc(widget.batchId).get();
     if (doc.exists) {
@@ -72,7 +94,9 @@ Future<void> _save() async {
                     borderRadius: BorderRadius.all(Radius.circular(50)),
                   )
                 ),
-                onPressed: (){}, child: Text("Delete",style: TextStyle(color: Colors.white),))
+                onPressed: (){
+                    deleteSender(widget.batchId, widget.code);
+                }, child: Text("Delete",style: TextStyle(color: Colors.white),))
             ],
           ),
           Container(

@@ -467,7 +467,7 @@ Future<void> launchEmail({
             decoration: InputDecoration(
               hintText: "Enter $label",
               filled: true,
-              fillColor: Colors.grey.shade100,
+              fillColor: Colors.white,
               border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
             ),
           ),
@@ -599,6 +599,7 @@ Future<void> launchEmail({
   @override
   Widget build(BuildContext context) {
     return  Scaffold(
+      backgroundColor: Colors.white,
       body:
       (_isLoadingSenders || _isLoadingDescriptions||_isLoadingDescriptions)?
       Center(
@@ -630,7 +631,7 @@ Future<void> launchEmail({
                    decoration: InputDecoration(
                      filled: true,
                      fillColor: Colors.grey.shade300,
-                     border: OutlineInputBorder(borderSide: BorderSide.none, borderRadius: BorderRadius.circular(8)),
+                     border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1), borderRadius: BorderRadius.circular(8)),
                    ),
                  ),
                  SizedBox(height: 15),
@@ -686,7 +687,7 @@ Future<void> launchEmail({
                    decoration: InputDecoration(
                      labelText: 'Sender Name',
                      filled: true,
-                     fillColor: Colors.grey.shade100,
+                     fillColor: Colors.white,
                                    border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
        
                      contentPadding:
@@ -740,7 +741,7 @@ Future<void> launchEmail({
                    decoration: InputDecoration(
                      labelText: 'Description Name',
                      filled: true,
-                     fillColor: Colors.grey.shade100,
+                     fillColor: Colors.white,
                                    border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
        
                      contentPadding:
@@ -830,7 +831,7 @@ Future<void> launchEmail({
                        decoration: InputDecoration(
                          labelText: 'Description Reference',
                          filled: true,
-                         fillColor: Colors.grey.shade100,
+                         fillColor: Colors.white,
                                        border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
                             
                          contentPadding:

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:finance_manager/AddNewSender.dart';
 import 'package:finance_manager/contact_det.dart';
 import 'package:flutter/material.dart';
 
@@ -69,7 +70,13 @@ class _ContactsState extends State<Contacts> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Contacts",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 24),),
+            Row(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column( crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+Text("Contacts",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 34),),
             SizedBox(height: 25,),
             Container(
                     alignment: Alignment.center,
@@ -88,6 +95,25 @@ class _ContactsState extends State<Contacts> {
                       onSubmitted: (value) => _performSearch(),
                     ),
                   ),
+                  ],
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white
+                  ),
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AddNewSenderPage()),
+    );
+  },
+  child: const Text('Add New Sender'),
+),
+
+              ],
+            ),
+            
                   _nameController.text.isNotEmpty? 
                   Row(
                          children: [
