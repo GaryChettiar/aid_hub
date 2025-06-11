@@ -178,7 +178,7 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
               children: [
                Image.asset('logo.png',height: 120),
                 SizedBox(width: 10,),
-                Text('Finance Office',style: TextStyle(fontSize: 28,fontWeight: FontWeight.bold),),
+                Text('Finance Office Inward File',style: TextStyle(fontSize: 28,fontWeight: FontWeight.bold),),
               ],
             ),
           ),

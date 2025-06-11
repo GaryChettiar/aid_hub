@@ -550,6 +550,11 @@ Future<void> launchEmail({
   @override
   Widget build(BuildContext context) {
     return  Scaffold(
+      appBar: AppBar(
+        leading:IconButton(onPressed: () {
+          Navigator.pop(context);
+        },icon: Icon(Icons.arrow_back_rounded),)
+      ),
       body: 
       (_isLoadingSenders || _isLoadingDescriptions||_isLoadingDescriptions)?
       Center(

@@ -31,6 +31,7 @@ class _NewRequestState extends State<NewRequest> {
     final TextEditingController _billNoController = TextEditingController();
     final TextEditingController _billReferenceController = TextEditingController();
     final TextEditingController _descriptionReferenceController = TextEditingController();
+    final TextEditingController _newDescriptionReferenceController = TextEditingController();
     final TextEditingController _commentsController = TextEditingController();
     final TextEditingController _additionalInfoController = TextEditingController();
     final TextEditingController _handedOverToController = TextEditingController();
@@ -357,7 +358,7 @@ Future<void> launchEmail({
         'billNo': _billNoController.text.trim(),
         'billReference': _billReferenceController.text.trim(),
         'descriptionReference': _selectedDescReference == "Other"
-            ? _descriptionReferenceController.text.trim()
+            ? _newDescriptionReferenceController.text.trim()
             : _selectedDescReference,
         'comments': _commentsController.text.trim(),
         'additionalInformation': _additionalInfoController.text.trim(),
@@ -393,25 +394,115 @@ Future<void> launchEmail({
 
       /// Additional logic remains the same
       if (_selectedSenderCode == "Other") {
-        await FirebaseFirestore.instance.collection('senders').add({
-          'code': _newSenderCodeController.text.trim(),
-          'name': _newSenderDetailsController.text.trim(),
-          'email': _newSenderEmailController.text.trim(),
-        });
-      }
+  final senderMetaRef = FirebaseFirestore.instance.collection('senders').doc('senderMeta');
+  final senderMetaSnap = await senderMetaRef.get();
+  final senderMeta = senderMetaSnap.data()!;
+
+  String currentBatch = senderMeta['currentBatch'];
+  int currentCount = senderMeta['batchCounts'][currentBatch] ?? 0;
+
+  // Check if current batch has space
+  if (currentCount >= 1000) {
+    // Create new batch
+    int newBatchNumber = int.parse(currentBatch.replaceAll('batch', '')) + 1;
+    currentBatch = 'batch$newBatchNumber';
+    currentCount = 0;
+
+    // Update metadata
+    await senderMetaRef.set({
+      'currentBatch': currentBatch,
+      'batchCounts.$currentBatch': 0,
+    }, SetOptions(merge: true));
+  }
+
+  final senderRef = FirebaseFirestore.instance.collection('senders').doc(currentBatch);
+
+  // Add new sender fields
+  await senderRef.set({
+    'sname${currentCount + 1}': _newSenderDetailsController.text.trim(),
+    'scode${currentCount + 1}': _newSenderCodeController.text.trim(),
+    'semail${currentCount + 1}': _newSenderEmailController.text.trim(),
+    'scontact${currentCount + 1}': '', // optional
+  }, SetOptions(merge: true));
+
+  // Update count in meta
+  await senderMetaRef.update({
+    'batchCounts.$currentBatch': currentCount + 1,
+  });
+}
+
 
       if (_selectedDescriptionCode == "Other") {
-        await FirebaseFirestore.instance.collection('descriptions').add({
-          'name': _newDescriptionCodeController.text.trim(),
-          'desc': _newDescriptionDetailsController.text.trim(),
-        });
-      }
+  final descMetaRef = FirebaseFirestore.instance.collection('descriptions').doc('descMeta');
+  final descMetaSnap = await descMetaRef.get();
+  final descMeta = descMetaSnap.data()!;
 
-      if (_selectedDescReference == "Other") {
-        await FirebaseFirestore.instance.collection('descReferences').add({
-          'value': _descriptionReferenceController.text.trim(),
-        });
-      }
+  String currentBatch = descMeta['currentBatch'];
+  int currentCount = descMeta['batchCounts'][currentBatch] ?? 0;
+
+  if (currentCount >= 1000) {
+    int newBatchNumber = int.parse(currentBatch.replaceAll('batch', '')) + 1;
+    currentBatch = 'batch$newBatchNumber';
+    currentCount = 0;
+
+    await descMetaRef.set({
+      'currentBatch': currentBatch,
+      'batchCounts.$currentBatch': 0,
+    }, SetOptions(merge: true));
+  }
+
+  final descRef = FirebaseFirestore.instance.collection('descriptions').doc(currentBatch);
+  await descRef.set({
+    'dname${currentCount + 1}': _newDescriptionDetailsController.text.trim(),
+    'dcode${currentCount + 1}': _newDescriptionCodeController.text.trim(),
+  }, SetOptions(merge: true));
+
+  await descMetaRef.update({
+    'batchCounts.$currentBatch': currentCount + 1,
+  });
+}
+
+
+    if (_selectedDescReference == "Other") {
+  final refMetaRef = FirebaseFirestore.instance
+      .collection('descref')
+      .doc('descrefMeta');
+  final refMetaSnap = await refMetaRef.get();
+  final refMeta = refMetaSnap.data()!;
+
+  String currentBatch = refMeta['currentBatch'];
+  int currentCount = (refMeta['batchCount'][currentBatch] ?? 0);
+
+  // Check if batch is full
+  if (currentCount >= 1000) {
+    int newBatchNum = int.parse(currentBatch.split('-').last) + 1;
+    currentBatch = 'batch-$newBatchNum';
+    currentCount = 0;
+
+    // Set new batch in metadata
+    await refMetaRef.set({
+      'currentBatch': currentBatch,
+      'batchCount': {
+        currentBatch: 0,
+      },
+    }, SetOptions(merge: true));
+  }
+
+  // Write new reference entry to the correct batch
+  final refDoc = FirebaseFirestore.instance
+      .collection('descref')
+      .doc(currentBatch);
+
+  await refDoc.set({
+    'ref${currentCount + 1}': _newDescriptionReferenceController.text.trim(),
+  }, SetOptions(merge: true));
+
+  // Increment the batch count in metadata
+  await refMetaRef.update({
+    'batchCount.$currentBatch': currentCount + 1,
+  });
+}
+
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Request submitted successfully!')),
@@ -420,7 +511,7 @@ Future<void> launchEmail({
       if (data['senderEmail'] != "") {
         launchEmail(
           toEmail: data['senderEmail'].toString(),
-          subject: 'New Request',
+          subject: 'Letter/Courier Received Acknowledgement',
           body: 'Request submitted successfully!',
         );
       }
@@ -449,7 +540,9 @@ Future<void> launchEmail({
       _pendingFromDaysController.clear();
       _remarksController.clear();
       _receivedByController.clear();
-
+_amountController.clear();
+_chequeTransactionNoController.clear();
+_trustNameController.clear();
       setState(() {
         _status = null;
       });
@@ -639,6 +732,11 @@ Future<void> launchEmail({
   @override
   Widget build(BuildContext context) {
     return  Scaffold(
+      appBar: AppBar(
+        leading:IconButton(onPressed: () {
+          Navigator.pop(context);
+        },icon: Icon(Icons.arrow_back_rounded),)
+      ),
       backgroundColor: Colors.white,
       body:
       (_isLoadingSenders || _isLoadingDescriptions||_isLoadingDescriptions)?
@@ -653,14 +751,14 @@ Future<void> launchEmail({
              child: Column(
                crossAxisAlignment: CrossAxisAlignment.start,
                children: [
-                 Text("New Request", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-                 SizedBox(height: 10),
+                //  Text("New Request", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                //  SizedBox(height: 10),
              
                  
-                 SizedBox(height: 30),
+                //  SizedBox(height: 30),
              
-                 Text("Request Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
-                 SizedBox(height: 10),
+                //  Text("Inward Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
+                //  SizedBox(height: 10),
              
                  Text("Inward Number",
                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF212529))),
@@ -693,7 +791,7 @@ Future<void> launchEmail({
          child: Column(
            crossAxisAlignment: CrossAxisAlignment.start,
            children: [
-             Text("Search Sender Name",
+             Text("Sender Name",
                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
              SizedBox(height: 8),
              TypeAheadField<Map<String, String>>(
@@ -749,7 +847,7 @@ Future<void> launchEmail({
          child: Column(
            crossAxisAlignment: CrossAxisAlignment.start,
            children: [
-             Text("Search Description Name",
+             Text("Inward Reason",
                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
              SizedBox(height: 8),
              TypeAheadField<Map<String, String>>(
@@ -779,7 +877,7 @@ Future<void> launchEmail({
                    controller: controller,
                    focusNode: focusNode,
                    decoration: InputDecoration(
-                     labelText: 'Description Name',
+                     labelText: 'Inward Reason',
                      filled: true,
                      fillColor: Colors.white,
                                    border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
@@ -829,7 +927,7 @@ Future<void> launchEmail({
                  SizedBox(height: 15),
              
                  _buildRow([
-                   _buildField("Bill Reference", controller: _billReferenceController),
+                   _buildField("Reference", controller: _billReferenceController),
                   
              
                  ]),
@@ -839,7 +937,7 @@ Future<void> launchEmail({
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text("Search Description Reference",
+                                  Text("Specification/Topic",
                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                   SizedBox(height: 8),
                                   TypeAheadField<Map<String, String>>(
@@ -869,7 +967,7 @@ Future<void> launchEmail({
                        controller: controller,
                        focusNode: focusNode,
                        decoration: InputDecoration(
-                         labelText: 'Description Reference',
+                         labelText: 'Specification/Topic',
                          filled: true,
                          fillColor: Colors.white,
                                        border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
@@ -891,7 +989,7 @@ Future<void> launchEmail({
              
                  _selectedDescReference == "Other"?
                  _buildRow([
-                   _buildField("Description Reference", controller: _descriptionReferenceController),
+                   _buildField("New Specification/Topic", controller: _newDescriptionReferenceController),
                  ]): SizedBox(width: 20),
                  SizedBox(height: 15),
                  _buildField("Comments", controller: _commentsController),

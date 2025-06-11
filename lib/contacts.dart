@@ -65,6 +65,7 @@ class _ContactsState extends State<Contacts> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      
       body: Padding(
         padding: const EdgeInsets.all(18.0),
         child: Column(
@@ -74,9 +75,16 @@ class _ContactsState extends State<Contacts> {
               mainAxisSize: MainAxisSize.max,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                
                 Column( crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+Row(children: [ 
+IconButton(onPressed: (){
+  Navigator.pop(context);
+}, icon: Icon(Icons.arrow_back_rounded)),
 Text("Contacts",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 34),),
+
+],),
             SizedBox(height: 25,),
             Container(
                     alignment: Alignment.center,
