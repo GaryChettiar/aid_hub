@@ -282,11 +282,11 @@ Future<void> launchEmail({
       final data = {
         'inwardNo': inwardNo,
         'receivedBy': _receivedByController.text.trim(),
-        'date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
-        'time': DateFormat('HH:mm').format(
-          DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day,
-              TimeOfDay.now().hour, TimeOfDay.now().minute),
-        ),
+        // 'date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        // 'time': DateFormat('HH:mm').format(
+        //   DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day,
+        //       TimeOfDay.now().hour, TimeOfDay.now().minute),
+        // ),
         'trustName': _trustNameController.text.trim(),
         'senderCode': _selectedSenderCode == "Other"
             ? _newSenderCodeController.text.trim()
