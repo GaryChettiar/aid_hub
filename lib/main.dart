@@ -57,6 +57,10 @@ int _currentBatchIndex=1;
     
     
   }
+  int _extractNumber(String inwardNo) {
+  final match = RegExp(r'\d+').firstMatch(inwardNo);
+  return match != null ? int.parse(match.group(0)!) : 0;
+}
     void _performSearch() async {
   
 
@@ -87,7 +91,9 @@ int _currentBatchIndex=1;
 
   setState(() {
     _lastFilteredDocs = matchedInwards;
+    
   });
+  _lastFilteredDocs.sort((a, b) => _extractNumber(a['inwardNo']).compareTo(_extractNumber(b['inwardNo'])));
 }
 
 int calculateDaysDifference(String storedDateStr) {
@@ -217,12 +223,12 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
                               border: OutlineInputBorder(
                                   borderRadius: BorderRadius.all(Radius.circular(50))),
                               suffixIcon: IconButton(
-                                onPressed: () => _performSearch,
+                                onPressed: _performSearch,
                                 icon: Icon(Icons.search),
                               ),
                               hintText: "Search by Inward Number",
                             ),
-                            onSubmitted: (value) => _performSearch,
+                            onSubmitted: (value) => _performSearch(),
                           ),
                         ),
                         SizedBox(width: 10),
@@ -240,15 +246,14 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
                               ),
                               hintText: "Search by Name",
                             ),
-                            onSubmitted: (value) {
-                             _performSearch;
-                            },
+                            onSubmitted: (value) => _performSearch(),
                           ),
                         ),
                         SizedBox(width: 10),
                         Container(
                           width: MediaQuery.sizeOf(context).width * 0.125,
                           child: DropdownButtonFormField<String>(
+                            onSaved: (newValue) => _performSearch(),
                                   value: _selectedStatus,
                                   decoration: InputDecoration(
                                     filled: true,
@@ -274,7 +279,7 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
                                     setState(() {
                                       _selectedStatus = value;
                                     });
-                                    _performSearch;
+                                    _performSearch();
                                   },
                                 ),
                         ),
