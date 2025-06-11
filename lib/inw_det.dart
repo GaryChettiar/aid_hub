@@ -7,7 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 class UpdateDetails extends StatefulWidget {
  final String inwardNo;
-  const UpdateDetails({super.key,required this.inwardNo});
+ final String batchId;
+  const UpdateDetails({super.key,required this.inwardNo,required this.batchId});
 
   @override
   State<UpdateDetails> createState() => _UpdateDetailsState();
@@ -57,7 +58,7 @@ final _newSenderEmailController = TextEditingController();
   @override
   void initState() {
     super.initState();
-    _fetchInward();
+    _fetchInward(widget.batchId,widget.inwardNo);
     _fetchSenders();
     _fetchDescriptions();
     _fetchDescReferences();
@@ -180,35 +181,49 @@ Future<void> _fetchDescReferences() async {
   }
 }
 
-Future<void> _fetchInward() async{
+Future<Map<String, dynamic>?> _fetchInward(String batchId, String inwardNo) async {
   try {
-    DocumentSnapshot snapshot = await FirebaseFirestore.instance.collection('inwards').doc(widget.inwardNo).get();
-    final data = snapshot.data() as Map<String,dynamic>;
-    setState(() {
-      _inward = data;
-      _inwardNoController.text = _inward['inwardNo'];
-_receivedByController.text = _inward['receivedBy'];
-_trustNameController.text = _inward['trustName'];
-_selectedSenderCode = _inward['senderCode'];
-_selectedDescriptionCode = _inward['descriptionCode'];
-_descriptionController.text = _inward['description'];
-_senderNameController.text = _inward['senderName'];
-_amountController.text = _inward['amount'];
-_chequeTransactionNoController.text = _inward['chequeTransactionNo'];
-_billNoController.text = _inward['billNo'];
-_billReferenceController.text = _inward['billReference'];
-_selectedDescReference = _inward['descriptionReference'];
-_commentsController.text = _inward['comments'];
-_additionalInfoController.text = _inward['additionalInformation'];
-_handedOverToController.text = _inward['handedOverTo'];
-_status = _inward['status'];
-_pendingFromDaysController.text = _inward['pendingFromDays'];
-_remarksController.text = _inward['remarks'];
-_descriptionReferenceController.text=_inward['descriptionReference'];
-    });
-    
+    final doc = await FirebaseFirestore.instance
+        .collection('groupedInwards')
+        .doc(batchId)
+        .get();
+
+    if (!doc.exists) return null;
+
+    final data = doc.data();
+    if (data == null || !data.containsKey(inwardNo)) return null;
+
+    final inwardData = Map<String, dynamic>.from(data[inwardNo]);
+    print(inwardNo);
+    print(inwardData);
+    inwardData['inwardNo'] = inwardNo; // Add it if missing
+    inwardData['batchId'] = batchId;   // Optional for tracking
+setState(() {
+  _status=inwardData['status'];
+   _inwardNoController.text = inwardData['inwardNo'] ?? '';
+  _dateController.text = inwardData['date'] ?? '';
+  _timeController.text = inwardData['time'] ?? '';
+  _receivedByController.text = inwardData['receivedBy'] ?? '';
+  _trustNameController.text = inwardData['trustName'] ?? '';
+  _senderCodeController.text = inwardData['senderCode'] ?? '';
+  _descriptionCodeController.text = inwardData['descriptionCode'] ?? '';
+  _descriptionController.text = inwardData['description'] ?? '';
+  _senderNameController.text = inwardData['senderName'] ?? '';
+  _amountController.text = inwardData['amount'] ?? '';
+  _chequeTransactionNoController.text = inwardData['chequeTransactionNo'] ?? '';
+  _billNoController.text = inwardData['billNo'] ?? '';
+  _billReferenceController.text = inwardData['billReference'] ?? '';
+  _descriptionReferenceController.text = inwardData['descriptionReference'] ?? '';
+  _commentsController.text = inwardData['comments'] ?? '';
+  _additionalInfoController.text = inwardData['additionalInformation'] ?? '';
+  _handedOverToController.text = inwardData['handedOverTo'] ?? '';
+  _pendingFromDaysController.text = inwardData['pendingFromDays'] ?? '';
+  _remarksController.text = inwardData['remarks'] ?? '';
+});
+    return inwardData;
   } catch (e) {
-    print('Error fetching senders: $e');
+    print("Error fetching inward: $e");
+    return null;
   }
 }
 
@@ -254,76 +269,113 @@ Future<void> launchEmail({
     }
 
     Future<void> _submitRequest() async {
-      if (_formKey.currentState!.validate()) {
-        if (_status == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Please select a status')),
-          );
-          return;
-        }
+  if (_formKey.currentState!.validate()) {
+    if (_status == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please select a status')),
+      );
+      return;
+    }
 
-        try {
-          final data = {
-            'inwardNo': _inwardNoController.text,
-            'receivedBy': _receivedByController.text.trim(),
-            'date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
-            'time': DateFormat('HH:mm').format(DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, TimeOfDay.now().hour, TimeOfDay.now().minute)),
-            'trustName': _trustNameController.text.trim(),
-            'senderCode': _selectedSenderCode == "Other" ? _newSenderCodeController.text.trim() : _selectedSenderCode,
-            'descriptionCode': _selectedDescriptionCode == "Other" ? _newDescriptionCodeController.text.trim() : _selectedDescriptionCode ,
-            'description': _descriptionController.text.trim(),
-            'senderName':_selectedSenderCode == "Other" ? _newSenderDetailsController.text.trim() : _senderNameController.text.trim(),
-            'senderEmail': _selectedSenderCode == "Other" ? _newSenderEmailController.text.trim() : _inward['senderEmail'],
-            'amount': _amountController.text.trim(),
-            'chequeTransactionNo': _chequeTransactionNoController.text.trim(),
-            'billNo': _billNoController.text.trim(),
-            'billReference': _billReferenceController.text.trim(),
-            'descriptionReference': _selectedDescReference == "Other" ? _descriptionReferenceController.text.trim() : _selectedDescReference,
-            'comments': _commentsController.text.trim(),
-            'additionalInformation': _additionalInfoController.text.trim(),
-            'handedOverTo': _handedOverToController.text.trim(),
-            'status': _status,
-            'pendingFromDays': _pendingFromDaysController.text.trim(),
-            'remarks': _remarksController.text.trim(),
-            'timestamp': FieldValue.serverTimestamp(),
-          };
+    try {
+      final inwardNo = _inwardNoController.text;
+      final data = {
+        'inwardNo': inwardNo,
+        'receivedBy': _receivedByController.text.trim(),
+        'date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        'time': DateFormat('HH:mm').format(
+          DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day,
+              TimeOfDay.now().hour, TimeOfDay.now().minute),
+        ),
+        'trustName': _trustNameController.text.trim(),
+        'senderCode': _selectedSenderCode == "Other"
+            ? _newSenderCodeController.text.trim()
+            : _selectedSenderCode,
+        'descriptionCode': _selectedDescriptionCode == "Other"
+            ? _newDescriptionCodeController.text.trim()
+            : _selectedDescriptionCode,
+        'description': _descriptionController.text.trim(),
+        'senderName': _selectedSenderCode == "Other"
+            ? _newSenderDetailsController.text.trim()
+            : _senderNameController.text.trim(),
+        'senderEmail': _selectedSenderCode == "Other"
+            ? _newSenderEmailController.text.trim()
+            : _inward['senderEmail'],
+        'amount': _amountController.text.trim(),
+        'chequeTransactionNo': _chequeTransactionNoController.text.trim(),
+        'billNo': _billNoController.text.trim(),
+        'billReference': _billReferenceController.text.trim(),
+        'descriptionReference': _selectedDescReference == "Other"
+            ? _descriptionReferenceController.text.trim()
+            : _selectedDescReference,
+        'comments': _commentsController.text.trim(),
+        'additionalInformation': _additionalInfoController.text.trim(),
+        'handedOverTo': _handedOverToController.text.trim(),
+        'status': _status,
+        'pendingFromDays': _pendingFromDaysController.text.trim(),
+        'remarks': _remarksController.text.trim(),
+        'timestamp': FieldValue.serverTimestamp(),
+      };
 
-          await FirebaseFirestore.instance.collection('inwards').doc(_inwardNoController.text).set(data);
-        
-        if (_selectedSenderCode == "Other") {
-          await FirebaseFirestore.instance.collection('senders').add({
-            'code': _newSenderCodeController.text.trim(),
-            'name': _newSenderDetailsController.text.trim(),
-            'email': _newSenderEmailController.text.trim(),
-          });
-        }
-        if (_selectedDescriptionCode == "Other") {
-          await FirebaseFirestore.instance.collection('descriptions').add({
-            'name': _newDescriptionCodeController.text.trim(),
-            'desc': _newDescriptionDetailsController.text.trim(),
-          });
-        }
-        if (_selectedDescReference == "Other") {
-          await FirebaseFirestore.instance.collection('descReferences').add({
-            'value': _descriptionReferenceController.text.trim(),
-          });
-        }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Request submitted successfully!')),
-          );
-          // launchEmail(toEmail: _newSenderEmailController.text.trim(), subject: 'New Request', body: 'Request submitted successfully!');
-          // sendFast2SMS(_requesterNameController.text , _inwardNoController.text, _requesterContactController.text);
-          
-        
-          Navigator.pop(context);
-          
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to submit request: $e')),
-          );
+      // Add to first batch that has < 300 entries
+      final coll = FirebaseFirestore.instance.collection('groupedInwards');
+      bool added = false;
+      int batchIndex = 1;
+
+      while (!added) {
+        final batchDocRef = coll.doc('batch-$batchIndex');
+        final docSnapshot = await batchDocRef.get();
+
+        if (!docSnapshot.exists || (docSnapshot.data()?.length ?? 0) < 300) {
+          await batchDocRef.set({
+            inwardNo: data,
+          }, SetOptions(merge: true));
+          added = true;
+        } else {
+          batchIndex++;
         }
       }
+
+      // Add new sender if needed
+      if (_selectedSenderCode == "Other") {
+        await FirebaseFirestore.instance.collection('senders').add({
+          'code': _newSenderCodeController.text.trim(),
+          'name': _newSenderDetailsController.text.trim(),
+          'email': _newSenderEmailController.text.trim(),
+        });
+      }
+
+      // Add new description if needed
+      if (_selectedDescriptionCode == "Other") {
+        await FirebaseFirestore.instance.collection('descriptions').add({
+          'name': _newDescriptionCodeController.text.trim(),
+          'desc': _newDescriptionDetailsController.text.trim(),
+        });
+      }
+
+      // Add new description reference if needed
+      if (_selectedDescReference == "Other") {
+        await FirebaseFirestore.instance.collection('descReferences').add({
+          'value': _descriptionReferenceController.text.trim(),
+        });
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Request submitted successfully!')),
+      );
+
+      // Optionally send email or SMS here
+      // launchEmail(...);
+
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to submit request: $e')),
+      );
     }
+  }
+}
+
     Widget _buildSidebarItem(String title, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10.0),
@@ -590,8 +642,8 @@ Future<void> launchEmail({
                     contentPadding:
                         EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                   ),
-                  validator: (value) =>
-                      value == null || value.isEmpty ? 'Required' : null,
+                  // validator: (value) =>
+                  //     value == null || value.isEmpty ? 'Required' : null,
                 );
               },
             ),
@@ -643,8 +695,8 @@ Future<void> launchEmail({
                     contentPadding:
                         EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                   ),
-                  validator: (value) =>
-                      value == null || value.isEmpty ? 'Required' : null,
+                  // validator: (value) =>
+                  //     value == null || value.isEmpty ? 'Required' : null,
                 );
               },
             ),
@@ -764,7 +816,7 @@ Future<void> launchEmail({
                 SizedBox(height: 15),
             
                 _buildRow([
-                  _buildField("Pending From Days", controller: _pendingFromDaysController),
+                  
                   _buildField("Remarks", controller: _remarksController),
                 ]),
                 SizedBox(height: 30),

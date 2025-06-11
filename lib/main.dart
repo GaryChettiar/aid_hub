@@ -3,6 +3,7 @@
 import 'dart:core';
 
 import 'package:finance_manager/contacts.dart';
+import 'package:finance_manager/inw_det.dart';
 import 'package:finance_manager/inward_details.dart';
 import 'package:finance_manager/new_inward.dart';
 import 'package:finance_manager/update.dart';
@@ -44,40 +45,95 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-bool isSearchButtonPressed = true;
+  
+bool isSearchButtonPressed = false;
   final TextEditingController _inwardNoController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
-   List<QueryDocumentSnapshot> _lastFilteredDocs=[];
-
+   List<Map<String,dynamic>> _lastFilteredDocs=[];
+int _currentBatchIndex=1;
   @override
   void initState() {
     super.initState();
     
     
   }
-  void _performSearch() async {
-    if(_inwardNoController.text.isNotEmpty||_nameController.text.isNotEmpty){
-  final snapshot = await FirebaseFirestore.instance.collection('inwards').get();
-  final docs = snapshot.docs;
+    void _performSearch({String status=""}) async {
+  if (status.isEmpty) return;
 
-  List<QueryDocumentSnapshot> filteredDocs = docs.where((doc) {
-    final data = doc.data() as Map<String, dynamic>;
-  
-    final inwardNo = data['inwardNo'] as String?;
-    final senderName = data['senderName'] as String?;
+  final batchSnapshots = await FirebaseFirestore.instance
+      .collection('groupedInwards')
+      .get();
 
-    return 
-        _matchesInwardSearch(inwardNo) &&
-        _matchesSenderSearch(senderName);
-  }).toList();
+  final matchedInwards = <Map<String, dynamic>>[];
+
+  for (final batchDoc in batchSnapshots.docs) {
+    final data = batchDoc.data();
+
+    for (final entry in data.entries) {
+      final inwardNo = entry.key;
+      final inwardData = entry.value as Map<String, dynamic>;
+      final docStatus = (inwardData['status'] ?? '').toString();
+
+      if (status=="All"||docStatus == status) {
+        inwardData['inwardNo'] ??= inwardNo;
+        matchedInwards.add(inwardData);
+      }
+    }
+  }
 
   setState(() {
-    _lastFilteredDocs = filteredDocs;
+    _lastFilteredDocs = matchedInwards;
   });
 }
+
+int calculateDaysDifference(String storedDateStr) {
+  // Parse the stored string to DateTime
+  final storedDate = DateTime.parse(storedDateStr);
+
+  // Get today's date (without time component)
+  final today = DateTime.now();
+  final todayOnlyDate = DateTime(today.year, today.month, today.day);
+
+  // Calculate the difference
+  final difference = todayOnlyDate.difference(storedDate).inDays;
+
+  return difference;
 }
 
-  
+  Future<void> _loadInwardBatch(int batchIndex) async {
+  final batchId = 'batch-$batchIndex';
+
+  final docSnapshot = await FirebaseFirestore.instance
+      .collection('groupedInwards')
+      .doc(batchId)
+      .get();
+
+  if (!docSnapshot.exists) {
+    print('No more batches.');
+    return;
+  }
+
+  final data = docSnapshot.data();
+  final inwardList = <Map<String, dynamic>>[];
+
+for (var entry in data!.entries) {
+  final inwardData = entry.value as Map<String, dynamic>;
+  inwardData['inwardNo'] ??= entry.key;
+  inwardList.add(inwardData);
+}
+inwardList.sort((a, b) {
+  final aNo = int.tryParse(RegExp(r'\d{4}$').stringMatch(a['inwardNo'] ?? '') ?? '0') ?? 0;
+  final bNo = int.tryParse(RegExp(r'\d{4}$').stringMatch(b['inwardNo'] ?? '') ?? '0') ?? 0;
+  return aNo.compareTo(bNo);
+});
+
+
+setState(() {
+  _lastFilteredDocs = inwardList;
+});
+
+}
+
   bool _matchesInwardSearch(String? inwardNo) {
     if (_inwardNoController.text.isEmpty) return true;
     return inwardNo?.toLowerCase().contains(_inwardNoController.text.toLowerCase()) ?? false;
@@ -87,6 +143,7 @@ bool isSearchButtonPressed = true;
     if (_nameController.text.isEmpty) return true;
     return senderName?.toLowerCase().contains(_nameController.text.toLowerCase()) ?? false;
   }
+String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
 
   @override
   Widget build(BuildContext context) {
@@ -106,7 +163,7 @@ bool isSearchButtonPressed = true;
               Text('Finance Office',style: TextStyle(fontSize: 24,fontWeight: FontWeight.bold),),
             ],
           ),
-          SizedBox(height: 100),
+          SizedBox(height: 50),
           Padding(
             padding: const EdgeInsets.all(18.0),
             child: Row(
@@ -147,7 +204,7 @@ bool isSearchButtonPressed = true;
                               border: OutlineInputBorder(
                                   borderRadius: BorderRadius.all(Radius.circular(50))),
                               suffixIcon: IconButton(
-                                onPressed: _performSearch,
+                                onPressed: () => _performSearch(),
                                 icon: Icon(Icons.search),
                               ),
                               hintText: "Search by Inward Number",
@@ -170,8 +227,44 @@ bool isSearchButtonPressed = true;
                               ),
                               hintText: "Search by Name",
                             ),
+                            onSubmitted: (value) {
+                             _performSearch(status: _selectedStatus!);
+                            },
                           ),
-                        )
+                        ),
+                        SizedBox(width: 10),
+                        Container(
+                          width: MediaQuery.sizeOf(context).width * 0.125,
+                          child: DropdownButtonFormField<String>(
+                                  value: _selectedStatus,
+                                  decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: Colors.transparent,
+                                    labelText: 'Filter by Status',
+                                    focusColor: Colors.transparent,
+                                    
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.all(Radius.circular(50))
+                                    ),
+                                    
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  ),
+                                  items: ['All', 'Pending', 'Completed']
+                                      .map((status) => DropdownMenuItem(
+                                            value: status,
+                                            child: Text(status),
+                                          ))
+                                      .toList(),
+                                      
+                                  onChanged: (value) {
+
+                                    setState(() {
+                                      _selectedStatus = value;
+                                    });
+                                    _performSearch(status: value!);
+                                  },
+                                ),
+                        ),
                       ],
                       )
                       :SizedBox(),
@@ -181,30 +274,6 @@ bool isSearchButtonPressed = true;
                 ),
                 Column(
                   children: [
-                    ElevatedButton(
-                      
-                       style:  ElevatedButton.styleFrom(
-                        textStyle: TextStyle(fontSize: 16),
-                        side: BorderSide(
-                          
-                          color: Colors.black,
-                          style: BorderStyle.solid,
-                          width: 2
-                          
-                        ),
-                        shape:RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(50))
-                        ),
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                    ),
-                      onPressed: (){
-                        Navigator.push(context, MaterialPageRoute(builder: (context)=>UpdatePage()));
-                      }, child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text("Update Inwards"),
-                      )),
-                      SizedBox(height: 10,),
                     ElevatedButton(
                       
                        style:  ElevatedButton.styleFrom(
@@ -288,50 +357,98 @@ bool isSearchButtonPressed = true;
             children: [
               Expanded(
                 flex: 1,
-                child: Text("Inward No",style: TextStyle(fontWeight: FontWeight.bold))),
+                child: Text("Inward No",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,)),
+                 Expanded(
+                flex: 1,
+                child: Text("Sender",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,)),
               Expanded(
                 flex: 1,
-                child: Text("Status",style: TextStyle(fontWeight: FontWeight.bold),)),
+                child: Text("Status",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,)),
               Expanded(
                 flex: 1,
-                child: Text("Handed Over To",style: TextStyle(fontWeight: FontWeight.bold)))
+                child: Text("Handed Over To",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,))
             ],
           ):SizedBox.shrink(),
           Expanded(
   child: _lastFilteredDocs.isEmpty
       ? Center(child: Text((_inwardNoController.text.isEmpty && _nameController.text.isEmpty )?"":'No data matches the filter'))
-      : ListView.builder(
-          itemCount: _lastFilteredDocs.length,
-          itemBuilder: (context, index) {
-            final data = _lastFilteredDocs[index].data() as Map<String, dynamic>;
-            return InkWell(
-              onTap: (){
-                //navigate to details page
-              },
-              child: Row(
-                mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [ 
-                  Expanded(
-                    flex: 1,
-                    
-                    child: Text(data['inwardNo'])),
-                  Expanded(
-                    flex: 1,
-                    child: Text(data['status'])),
-                  Expanded(
-                    flex: 1,
-                    child: Text(data['handedOverTo']))
-                ],
-              ),
-            );
-          },
+      : GridView.builder(
+  
+  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: 1,
+    // mainAxisSpacing: 4,
+    childAspectRatio: 30, // Higher value = shorter height
+  ),
+  itemCount: _lastFilteredDocs.length,
+  itemBuilder: (context, index) {
+    final data = _lastFilteredDocs[index];
+
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UpdateDetails(
+              inwardNo: data['inwardNo'],
+              batchId: "batch-$_currentBatchIndex",
+            ),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(4),
+          color: Colors.white,
         ),
+        child: Row(
+          children: [
+            _buildCell(data['inwardNo'] ?? ""),
+            _buildCell(data['senderName'] ?? ""),
+            _buildCell(
+              (data['status'] ?? "") +
+                  ((data['status'] == "Pending")
+                      ? " (${calculateDaysDifference(data['date'])}d)"
+                      : ""),
+              color: data['status'] == "Pending" ? Colors.red : null,
+            ),
+            _buildCell(data['handedOverTo'] ?? ""),
+          ],
+        ),
+      ),
+    );
+  },
+)
+
 ),
 
         ],
       ),
     );
   }
+  
+/// Cell Widget for Spreadsheet look
+Widget _buildCell(String text, {Color? color}) {
+  return Expanded(
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 6.0),
+      decoration: BoxDecoration(
+        border: Border(
+          right: BorderSide(color: Colors.grey.shade300),
+        ),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          color: color ?? Colors.black,
+        ),
+        textAlign: TextAlign.center,
+        overflow: TextOverflow.ellipsis,
+      ),
+    ),
+  );
+}
 }
 

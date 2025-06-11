@@ -50,6 +50,12 @@ Future<void> _save() async {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(onPressed: (){
+          Navigator.popUntil(context, (route) => route.isFirst);
+
+        }, icon: Icon(Icons.home)),
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -129,7 +135,7 @@ Future<void> _save() async {
                   ),
                   onPressed: _save, child: Text("Submit",style: TextStyle(color: Colors.white),))
         ],
-      ),
+      ),  
     );
   }
 }

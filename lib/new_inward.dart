@@ -189,25 +189,32 @@ Future<void> _fetchDescReferences() async {
    
 
    void _generateInwardNo() async {
-  final prefix = 'INWD-';
+  const prefix = 'INWD-';
 
   try {
-    final querySnapshot = await FirebaseFirestore.instance
-        .collection('inwards')
-        .orderBy('inwardNo', descending: true)
-        .limit(1)
+    final groupedDocs = await FirebaseFirestore.instance
+        .collection('groupedInwards')
         .get();
 
-    int nextSerial = 1;
+    int maxSerial = 0;
 
-    if (querySnapshot.docs.isNotEmpty) {
-      final lastInwardNo = querySnapshot.docs.first['inwardNo'] as String;
-      final lastSerialStr = lastInwardNo.split('-').last;
-      final lastSerial = int.tryParse(lastSerialStr) ?? 0;
-      nextSerial = lastSerial + 1;
+    for (var doc in groupedDocs.docs) {
+      final data = doc.data();
+
+      for (var key in data.keys) {
+        final match = RegExp(r'INWD-(\d{4})').firstMatch(key);
+        if (match != null) {
+          final serial = int.tryParse(match.group(1) ?? '0') ?? 0;
+          if (serial > maxSerial) {
+            maxSerial = serial;
+          }
+        }
+      }
     }
 
+    final nextSerial = maxSerial + 1;
     final serialStr = nextSerial.toString().padLeft(4, '0');
+
     setState(() {
       _inwardNoController.text = '$prefix$serialStr';
     });
@@ -218,6 +225,8 @@ Future<void> _fetchDescReferences() async {
     });
   }
 }
+
+
 
 
 
@@ -263,105 +272,159 @@ Future<void> launchEmail({
     }
 
     Future<void> _submitRequest() async {
-      if (_formKey.currentState!.validate()) {
-        if (_status == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Please select a status')),
-          );
-          return;
-        }
-
-        try {
-          final data = {
-            'inwardNo': _inwardNoController.text,
-            'receivedBy': _receivedByController.text.trim(),
-            'date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
-            'time': DateFormat('HH:mm').format(DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, TimeOfDay.now().hour, TimeOfDay.now().minute)),
-            'trustName': _trustNameController.text.trim(),
-            'senderCode': _selectedSenderCode == "Other" ? _newSenderCodeController.text.trim() : _selectedSenderCode,
-            'descriptionCode': _selectedDescriptionCode == "Other" ? _newDescriptionCodeController.text.trim() : _selectedDescriptionCode ,
-            'description': _descriptionController.text.trim(),
-            'senderName':_selectedSenderCode == "Other" ? _newSenderDetailsController.text.trim() : _senderNameController.text.trim(),
-            'senderEmail': _selectedSenderCode == "Other" ? _newSenderEmailController.text.trim() : await getSenderEmail(_senderCodeController.text.trim()),
-            'amount': _amountController.text.trim(),
-            'chequeTransactionNo': _chequeTransactionNoController.text.trim(),
-            'billNo': _billNoController.text.trim(),
-            'billReference': _billReferenceController.text.trim(),
-            'descriptionReference': _selectedDescReference == "Other" ? _descriptionReferenceController.text.trim() : _selectedDescReference,
-            'comments': _commentsController.text.trim(),
-            'additionalInformation': _additionalInfoController.text.trim(),
-            'handedOverTo': _handedOverToController.text.trim(),
-            'status': _status,
-            'pendingFromDays': _pendingFromDaysController.text.trim(),
-            'remarks': _remarksController.text.trim(),
-            'timestamp': FieldValue.serverTimestamp(),
-          };
-
-          await FirebaseFirestore.instance.collection('inwards').doc(_inwardNoController.text).set(data);
-        
-        if (_selectedSenderCode == "Other") {
-          await FirebaseFirestore.instance.collection('senders').add({
-            'code': _newSenderCodeController.text.trim(),
-            'name': _newSenderDetailsController.text.trim(),
-            'email': _newSenderEmailController.text.trim(),
-          });
-        }
-        if (_selectedDescriptionCode == "Other") {
-          await FirebaseFirestore.instance.collection('descriptions').add({
-            'name': _newDescriptionCodeController.text.trim(),
-            'desc': _newDescriptionDetailsController.text.trim(),
-          });
-        }
-        if (_selectedDescReference == "Other") {
-          await FirebaseFirestore.instance.collection('descReferences').add({
-            'value': _descriptionReferenceController.text.trim(),
-          });
-        }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Request submitted successfully!')),
-          );
-          (data['senderEmail']=="")?{}:
-          launchEmail(toEmail: _newSenderEmailController.text.trim(), subject: 'New Request', body: 'Request submitted successfully!');
-          // sendFast2SMS(_requesterNameController.text , _inwardNoController.text, _requesterContactController.text);
-          _formKey.currentState!.reset();
-          _generateInwardNo();
-          _dateController.clear();
-          _timeController.clear();
-          _newSenderCodeController.clear();
-          _newSenderDetailsController.clear();
-          _newSenderEmailController.clear();
-          _newDescriptionCodeController.clear();
-          _newDescriptionDetailsController.clear();
-          _descriptionReferenceController.clear();
-          _selectedSenderCode = null;
-          _selectedDescriptionCode = null;
-          _selectedDescReference = null;
-          _senderNameController.clear();
-          _descriptionController.clear();
-          _billNoController.clear();
-          _billReferenceController.clear();
-          _descriptionReferenceController.clear();
-          _commentsController.clear();
-          _additionalInfoController.clear();
-          _handedOverToController.clear();
-          _pendingFromDaysController.clear();
-          _remarksController.clear();
-  
-          _status = null;
-          _receivedByController.clear();
-          setState(() {
-            _status = null;
-          });
-          _fetchSenders();
-          _fetchDescriptions();
-          _fetchDescReferences();
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to submit request: $e')),
-          );
-        }
-      }
+  if (_formKey.currentState!.validate()) {
+    if (_status == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please select a status')),
+      );
+      return;
     }
+
+    try {
+      final inwardNo = _inwardNoController.text;
+      final senderCode = _selectedSenderCode == "Other"
+          ? _newSenderCodeController.text.trim()
+          : _selectedSenderCode;
+      final descriptionCode = _selectedDescriptionCode == "Other"
+          ? _newDescriptionCodeController.text.trim()
+          : _selectedDescriptionCode;
+
+      final data = {
+        'inwardNo': inwardNo,
+        'receivedBy': _receivedByController.text.trim(),
+        'date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        'time': DateFormat('HH:mm').format(
+          DateTime(
+            DateTime.now().year,
+            DateTime.now().month,
+            DateTime.now().day,
+            TimeOfDay.now().hour,
+            TimeOfDay.now().minute,
+          ),
+        ),
+        'trustName': _trustNameController.text.trim(),
+        'senderCode': senderCode,
+        'descriptionCode': descriptionCode,
+        'description': _descriptionController.text.trim(),
+        'senderName': _selectedSenderCode == "Other"
+            ? _newSenderDetailsController.text.trim()
+            : _senderNameController.text.trim(),
+        'senderEmail': _selectedSenderCode == "Other"
+            ? _newSenderEmailController.text.trim()
+            : await getSenderEmail(_senderCodeController.text.trim()),
+        'amount': _amountController.text.trim(),
+        'chequeTransactionNo': _chequeTransactionNoController.text.trim(),
+        'billNo': _billNoController.text.trim(),
+        'billReference': _billReferenceController.text.trim(),
+        'descriptionReference': _selectedDescReference == "Other"
+            ? _descriptionReferenceController.text.trim()
+            : _selectedDescReference,
+        'comments': _commentsController.text.trim(),
+        'additionalInformation': _additionalInfoController.text.trim(),
+        'handedOverTo': _handedOverToController.text.trim(),
+        'status': _status,
+        'pendingFromDays': _pendingFromDaysController.text.trim(),
+        'remarks': _remarksController.text.trim(),
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+
+      // 🔄 Determine current batch
+      final coll = FirebaseFirestore.instance.collection('groupedInwards');
+      int batchIndex = 1;
+      bool added = false;
+
+      while (!added) {
+  final batchDocRef = coll.doc('batch-$batchIndex');
+  final docSnapshot = await batchDocRef.get();
+
+  final existingData = docSnapshot.data();
+  final currentCount = existingData?.length ?? 0;
+
+  if (!docSnapshot.exists || currentCount < 300) {
+    await batchDocRef.set({
+      inwardNo: data,
+    }, SetOptions(merge: true));
+    added = true;
+  } else {
+    batchIndex++;
+  }
+}
+
+
+      /// Additional logic remains the same
+      if (_selectedSenderCode == "Other") {
+        await FirebaseFirestore.instance.collection('senders').add({
+          'code': _newSenderCodeController.text.trim(),
+          'name': _newSenderDetailsController.text.trim(),
+          'email': _newSenderEmailController.text.trim(),
+        });
+      }
+
+      if (_selectedDescriptionCode == "Other") {
+        await FirebaseFirestore.instance.collection('descriptions').add({
+          'name': _newDescriptionCodeController.text.trim(),
+          'desc': _newDescriptionDetailsController.text.trim(),
+        });
+      }
+
+      if (_selectedDescReference == "Other") {
+        await FirebaseFirestore.instance.collection('descReferences').add({
+          'value': _descriptionReferenceController.text.trim(),
+        });
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Request submitted successfully!')),
+      );
+
+      if (data['senderEmail'] != "") {
+        launchEmail(
+          toEmail: _newSenderEmailController.text.trim(),
+          subject: 'New Request',
+          body: 'Request submitted successfully!',
+        );
+      }
+
+      /// Reset Form
+      _formKey.currentState!.reset();
+      _generateInwardNo();
+      _dateController.clear();
+      _timeController.clear();
+      _newSenderCodeController.clear();
+      _newSenderDetailsController.clear();
+      _newSenderEmailController.clear();
+      _newDescriptionCodeController.clear();
+      _newDescriptionDetailsController.clear();
+      _descriptionReferenceController.clear();
+      _selectedSenderCode = null;
+      _selectedDescriptionCode = null;
+      _selectedDescReference = null;
+      _senderNameController.clear();
+      _descriptionController.clear();
+      _billNoController.clear();
+      _billReferenceController.clear();
+      _commentsController.clear();
+      _additionalInfoController.clear();
+      _handedOverToController.clear();
+      _pendingFromDaysController.clear();
+      _remarksController.clear();
+      _receivedByController.clear();
+
+      setState(() {
+        _status = null;
+      });
+
+      _fetchSenders();
+      _fetchDescriptions();
+      _fetchDescReferences();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to submit request: $e')),
+      );
+    }
+  }
+}
+
     Widget _buildSidebarItem(String title, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10.0),

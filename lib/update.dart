@@ -105,7 +105,7 @@ class _UpdatePageState extends State<UpdatePage> {
               final data = _lastFilteredDocs[index].data() as Map<String, dynamic>;
               return InkWell(
                 onTap: (){
-                  Navigator.push(context, MaterialPageRoute(builder: (context)=> UpdateDetails(inwardNo: data['inwardNo'])));
+                  Navigator.push(context, MaterialPageRoute(builder: (context)=> UpdateDetails(inwardNo: data['inwardNo'],batchId: "1",)));
                 },
                 child: ListTile(
                   title: Text(data['inwardNo'] ?? 'No Inward No'),
