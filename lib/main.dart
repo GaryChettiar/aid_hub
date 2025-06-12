@@ -86,7 +86,7 @@ int _currentBatchIndex=1;
   @override
   void initState() {
     super.initState();
-    
+    _fetchEmployees();
     
   }
   int _currentGroupIndex = 0;
@@ -97,6 +97,7 @@ List<List<Map<String, dynamic>>> _chunkedInwards(List<Map<String, dynamic>> list
   }
   return chunks;
 }
+List _employees = [];
 void _downloadFilteredDocsAsExcelWeb() {
   if (_lastFilteredDocs.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -238,6 +239,46 @@ setState(() {
 bool _matchesEmployee(String? employee) {
   if (_selectedEmployee == null || _selectedEmployee == 'All') return true;
   return employee?.toLowerCase() == _selectedEmployee!.toLowerCase();
+}
+Future<void> _fetchEmployees() async {
+  setState(() {
+    // _isLoadingDescReferences = true;
+  });
+
+  try {
+    final docSnap = await FirebaseFirestore.instance
+        .collection('employees')
+        .doc('employees') // same name as collection
+        .get();
+
+    final data = docSnap.data();
+    final List<Map<String, String>> employees = [];
+
+    if (data != null && data.containsKey('emp')) {
+      final List<dynamic> empList = data['emp'];
+      empList.add("All");
+setState(() {
+  _employees=empList;
+});
+    //   for (var emp in empList) {
+    //     final value = emp.toString();
+    //     employees.add({'label': value, 'value': value});
+    //   }
+    }
+
+    // // Add fallback "Other" option
+    // employees.add({'label': 'Other', 'value': 'Other'});
+
+    // setState(() {
+    //   _employees = employees;
+    //   // _isLoadingDescReferences = false;
+    // });
+  } catch (e) {
+    print('Error fetching employees: $e');
+    setState(() {
+      // _isLoadingDescReferences = false;
+    });
+  }
 }
 
 String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
@@ -398,73 +439,43 @@ String? _selectedEmployee; // e.g., "All", "Pending", "Approved", etc.
                                   },
                                 ),
                         ),
-                        Container(
-                          width: MediaQuery.sizeOf(context).width * 0.125,
+                        
+ Container(
+                             width: MediaQuery.sizeOf(context).width * 0.125,
                           child: DropdownButtonFormField<String>(
-                            onSaved: (newValue) => _performSearch(),
-                                  value: _selectedEmployee,
-                                  decoration: InputDecoration(
-                                    filled: true,
-                                    fillColor: Colors.transparent,
-                                    labelText: 'Filter by Employee',
-                                    focusColor: Colors.transparent,
-                                    
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.all(Radius.circular(50))
-                                    ),
-                                    
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  ),
-                                  items: [ 'All','Blaise','Elizabeth','Jacinto','John', 'Sherlyn',]
-                                      .map((status) => DropdownMenuItem(
-                                            value: status,
-                                            child: Text(status),
-                                          ))
-                                      .toList(),
-                                      
-                                  onChanged: (value) {
-
-                                    setState(() {
-                                      _selectedEmployee = value;
-                                    });
-                                    _performSearch();
-                                  },
-                                ),
+                                            value: _selectedEmployee,
+                                            decoration: InputDecoration(
+                                              filled: true,
+                                              fillColor: Colors.white,
+                                              labelText: 'Filter by Employee',
+                                              border: OutlineInputBorder(
+                                                borderRadius: BorderRadius.circular(50),
+                                              ),
+                                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                            ),
+                                            items: _employees.map((emp) {
+                                              return DropdownMenuItem<String>(
+                                                value: emp,
+                                                child: Text(emp),
+                                              );
+                                            }).toList(),
+                                            onChanged: (value) {
+                                              setState(() {
+                                                _selectedEmployee = value;
+                                              });
+                                              _performSearch();
+                                            },
+                                          ),
                         ),
                         SizedBox(width: 10,),
-                        groupedInwards.length>1?
-                        Row(
-                          children: [
-                            ElevatedButton(
-               style:  ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          foregroundColor: Colors.white,
-                        ),
-              onPressed: _currentGroupIndex > 0
-                  ? () => setState(() => _currentGroupIndex--)
-                  : null,
-              child: const Text('Previous'),
-            ),
-            const SizedBox(width: 16),
-            ElevatedButton(
-               style:  ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          foregroundColor: Colors.white,
-                        ),
-              onPressed: _currentGroupIndex < groupedInwards.length - 1
-                  ? () => setState(() => _currentGroupIndex++)
-                  : null,
-              child: const Text('Next'),
-            ),
-                          ],
-                        ):SizedBox.shrink(),
+                       
             
                         
                       ],
                       )
                       :SizedBox(),
                   
-                    
+                  
                   ],
                 ),
                 Column(
@@ -501,21 +512,55 @@ String? _selectedEmployee; // e.g., "All", "Pending", "Approved", etc.
                         child: Text("Contacts"),
                       )),
                       SizedBox(height: 10,),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
-                            foregroundColor: Colors.white
-                          ),
-                          icon: Icon(Icons.download,color: Colors.white,),
-                          label: Text("Download Excel"),
-                          onPressed: _downloadFilteredDocsAsExcelWeb,
-                        ),
+                        
 
                   ],
                 )
               ],
             ),
           ),
+          _lastFilteredDocs.isNotEmpty? Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize:MainAxisSize.max,
+            children: [
+              ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.black,
+                                foregroundColor: Colors.white
+                              ),
+                              icon: Icon(Icons.download,color: Colors.white,),
+                              label: Text("Download Excel"),
+                              onPressed: _downloadFilteredDocsAsExcelWeb,
+                            ),
+                            SizedBox(width: 10,),
+                             groupedInwards.length>1?
+                        Row(
+                          children: [
+                            ElevatedButton(
+               style:  ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                        ),
+              onPressed: _currentGroupIndex > 0
+                  ? () => setState(() => _currentGroupIndex--)
+                  : null,
+              child: const Text('Previous'),
+            ),
+            const SizedBox(width: 16),
+            ElevatedButton(
+               style:  ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                        ),
+              onPressed: _currentGroupIndex < groupedInwards.length - 1
+                  ? () => setState(() => _currentGroupIndex++)
+                  : null,
+              child: const Text('Next'),
+            ),
+                          ],
+                        ):SizedBox.shrink(),
+            ],
+          ):SizedBox.shrink(),
             // Row(
           //   mainAxisAlignment: MainAxisAlignment.center,
           //   mainAxisSize: MainAxisSize.max,

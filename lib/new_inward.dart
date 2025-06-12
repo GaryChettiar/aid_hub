@@ -34,6 +34,8 @@ class _NewRequestState extends State<NewRequest> {
     final TextEditingController _billReferenceController = TextEditingController();
     final TextEditingController _descriptionReferenceController = TextEditingController();
     final TextEditingController _newDescriptionReferenceController = TextEditingController();
+    final TextEditingController _newEmployeeController = TextEditingController();
+
     final TextEditingController _commentsController = TextEditingController();
     final TextEditingController _additionalInfoController = TextEditingController();
     final TextEditingController _handedOverToController = TextEditingController();
@@ -57,7 +59,7 @@ final _newSenderEmailController = TextEditingController();
   bool _isLoadingDescriptions = true;
   bool _isLoadingDescReferences = true;
   List<Map<String, String>> _descReferenceItems = [];
-  List<Map<String, String>> _employees = [];
+  List _employees = [];
   String? _selectedDescReference;
   String? employee;
 
@@ -194,41 +196,41 @@ Future<void> _fetchDescReferences() async {
 }
 Future<void> _fetchEmployees() async {
   setState(() {
-    _isLoadingDescReferences = true;
+    // _isLoadingDescReferences = true;
   });
 
   try {
-    final snapshot =
-        await FirebaseFirestore.instance.collection('employees').get();
+    final docSnap = await FirebaseFirestore.instance
+        .collection('employees')
+        .doc('employees') // same name as collection
+        .get();
 
-    final List<Map<String, String>> employees= [];
+    final data = docSnap.data();
+    final List<Map<String, String>> employees = [];
 
-    for (var doc in snapshot.docs) {
-      if (doc.id == 'empMeta') continue; // Skip metadata document
-
-      final data = doc.data() as Map<String, dynamic>;
-
-      int i = 1;
-      while (data.containsKey('emp$i')) {
-        final value = data['emp$i']?.toString() ?? '';
-        if (value.isNotEmpty) {
-          employees.add({'value': value});
-        }
-        i++;
-      }
+    if (data != null && data.containsKey('emp')) {
+      final List<dynamic> empList = data['emp'];
+      empList.add("Other");
+setState(() {
+  _employees=empList;
+});
+    //   for (var emp in empList) {
+    //     final value = emp.toString();
+    //     employees.add({'label': value, 'value': value});
+    //   }
     }
 
-    // Add fallback option
-    employees.add({'value': 'Other'});
+    // // Add fallback "Other" option
+    // employees.add({'label': 'Other', 'value': 'Other'});
 
-    setState(() {
-      _employees = employees;
-      _isLoadingDescReferences = false;
-    });
+    // setState(() {
+    //   _employees = employees;
+    //   // _isLoadingDescReferences = false;
+    // });
   } catch (e) {
-    print('Error fetching descReferences: $e');
+    print('Error fetching employees: $e');
     setState(() {
-      _isLoadingDescReferences = false;
+      // _isLoadingDescReferences = false;
     });
   }
 }
@@ -407,7 +409,7 @@ Future<void> launchEmail({
             : _selectedDescReference,
         'comments': _commentsController.text.trim(),
         'additionalInformation': _additionalInfoController.text.trim(),
-        'handedOverTo': _handedOverToController.text.trim(),
+        'handedOverTo':employee=="Other"?_newEmployeeController.text.trim():employee,
         'status': _status,
         'pendingFromDays': _pendingFromDaysController.text.trim(),
         'remarks': _remarksController.text.trim(),
@@ -546,7 +548,37 @@ Future<void> launchEmail({
   await refMetaRef.update({
     'batchCount.$currentBatch': currentCount + 1,
   });
+}if (employee == "Other") {
+  final docRef = FirebaseFirestore.instance
+      .collection('employees')
+      .doc('employees');
+
+  final docSnap = await docRef.get();
+
+  if (docSnap.exists) {
+    List<dynamic> currentList = docSnap.data()?['emp'] ?? [];
+
+    final newEmployee = _newEmployeeController.text.trim();
+
+    if (newEmployee.isNotEmpty && !currentList.contains(newEmployee)) {
+      // Append new employee to list and update Firestore
+      currentList.add(newEmployee);
+
+      await docRef.update({
+        'emp': currentList,
+      });
+    }
+  } else {
+    // If the document doesn't exist, create it with the new employee
+    final newEmployee = _handedOverToController.text.trim();
+    if (newEmployee.isNotEmpty) {
+      await docRef.set({
+        'emp': [newEmployee],
+      });
+    }
+  }
 }
+
 
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1046,58 +1078,65 @@ _trustNameController.clear();
              
               Row(
                    children: [
-                     Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text("Handed Over To",
-                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                  SizedBox(height: 8),
-                                  TypeAheadField<Map<String, String>>(
-                                    controller: _handedOverToController,
-                                    suggestionsCallback: (pattern) {
-                     return _employees
-                         .where((item) => item['value']!
-                             .toLowerCase()
-                             .contains(pattern.toLowerCase()))
-                         .toList();
-                                    },
-                                    itemBuilder: (context, suggestion) {
-                     return ListTile(
-                       title: Text(suggestion['value'] ?? ''),
-                       // subtitle: Text('Code: ${suggestion['name'] ?? ''}'),
-                     );
-                                    },
-                                    onSelected: (suggestion) {
-                     _handedOverToController.text = suggestion['value']!;
-                     
-                     setState(() {
-                       employee = suggestion['value'];
-                     });
-                                    },
-                                    builder: (context, controller, focusNode) {
-                     return TextFormField(
-                       controller: controller,
-                       focusNode: focusNode,
-                       decoration: InputDecoration(
-                         labelText: 'Handed Over To',
-                         filled: true,
-                         fillColor: Colors.white,
-                                       border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
-                            
-                         contentPadding:
-                             EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                       ),
-                      //  validator: (value) =>
-                      //      value == null || value.isEmpty ? 'Required' : null,
-                     );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
+                    Expanded(
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        "Handed Over To",
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
+      SizedBox(height: 8),
+      TypeAheadField<String>(
+        controller: _handedOverToController,
+        suggestionsCallback: (pattern) {
+  return _employees
+      .where((item) => item.toLowerCase().contains(pattern.toLowerCase()))
+      .cast<String>()
+      .toList();
+},
+
+        itemBuilder: (context, suggestion) {
+          return ListTile(
+            title: Text(suggestion),
+          );
+        },
+        onSelected: (suggestion) {
+          _handedOverToController.text = suggestion;
+
+          setState(() {
+            employee = suggestion;
+          });
+        },
+        builder: (context, controller, focusNode) {
+          return TextFormField(
+            controller: controller,
+            focusNode: focusNode,
+            decoration: InputDecoration(
+              labelText: 'Handed Over To',
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: Colors.black, width: 1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            ),
+            // validator: (value) =>
+            //     value == null || value.isEmpty ? 'Required' : null,
+          );
+        },
+      ),
+    ],
+  ),
+)
+
                    ],
                  ),
+                 employee=="Other"? 
+                  _buildRow([
+                   _buildField("New Employee", controller: _newEmployeeController),
+                 ]): SizedBox(width: 20),
                  _buildRow([
                    
                    _buildStatusRadio(),
