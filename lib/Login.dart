@@ -194,7 +194,7 @@ class _LoginPageState extends State<LoginPage> {
         icon: Icon(icon, color: Colors.white),
         label: Text(
           text,
-          style: GoogleFonts.inter(color: Colors.white),
+          style: GoogleFonts.inter(color: Colors.black),
         ),
         style: OutlinedButton.styleFrom(
           side: BorderSide(color: Colors.grey.shade700),
@@ -230,7 +230,7 @@ class _LoginPageState extends State<LoginPage> {
         TextField(
           controller: controller,
           obscureText: isPassword,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.black),
           decoration: InputDecoration(
             suffixIcon: isPassword? IconButton(onPressed: (){
               showPwd=!showPwd;

@@ -258,7 +258,12 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
               children: [
                Image.asset('assets/logo.png',height: 120),
                 SizedBox(width: 10,),
-                Text('Finance Office Inward File',style: TextStyle(fontSize: 28,fontWeight: FontWeight.bold),),
+                Column(
+                  children: [
+                    Text('Finance Office',style: TextStyle(fontSize: 28,fontWeight: FontWeight.bold),),
+                    Text('Inward File',style: TextStyle(fontSize: 24,fontWeight: FontWeight.bold),),
+                  ],
+                )
               ],
             ),
           ),
@@ -423,6 +428,15 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
                 ),
                 Column(
                   children: [
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:  Colors.redAccent,
+                        foregroundColor: Colors.white
+                      ),
+                      onPressed: (){
+                      FirebaseAuth.instance.signOut();
+                    }, child: Text("Logout")),
+                    SizedBox(height: 10,),
                     ElevatedButton(
                       
                        style:  ElevatedButton.styleFrom(
