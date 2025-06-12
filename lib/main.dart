@@ -2,6 +2,7 @@
 
 import 'dart:core';
 
+import 'package:finance_manager/DeleteInwards.dart';
 import 'package:finance_manager/Login.dart';
 import 'package:finance_manager/contacts.dart';
 import 'package:finance_manager/inw_det.dart';
@@ -137,43 +138,46 @@ final keys = ["inwardNo","date","senderName","status","handedOverTo","remarks"];
   final match = RegExp(r'\d+').firstMatch(inwardNo);
   return match != null ? int.parse(match.group(0)!) : 0;
 }
-    void _performSearch() async {
-  
 
+
+void _performSearch() async {
   final batchSnapshots = await FirebaseFirestore.instance
       .collection('groupedInwards')
       .get();
 
-  final matchedInwards = <Map<String, dynamic>>[];
+  final List<Map<String, dynamic>> matchedInwards = [];
 
   for (final batchDoc in batchSnapshots.docs) {
-    final data = batchDoc.data();
+    if (batchDoc.id == 'meta') continue;
+
+    final Map<String, dynamic> data = batchDoc.data();
 
     for (final entry in data.entries) {
       final inwardNo = entry.key;
-      final inwardData = entry.value as Map<String, dynamic>;
-      final docStatus = (inwardData['status'] ?? '').toString();
+      final inwardData = Map<String, dynamic>.from(entry.value);
 
-      if (
-        _matchesEmployee(inwardData['handedOverTo'])&&
-        _matchesStatus(docStatus) &&
-    _matchesInwardSearch(inwardNo) &&
-    _matchesSenderSearch(inwardData['senderName'] as String?)) {
-  inwardData['inwardNo'] ??= inwardNo;
-  matchedInwards.add(inwardData);
-}
+      final status = (inwardData['status'] ?? '').toString();
+      final sender = inwardData['senderName']?.toString();
+      final handedOver = inwardData['handedOverTo']?.toString();
 
-
+      if (_matchesEmployee(handedOver) &&
+          _matchesStatus(status) &&
+          _matchesInwardSearch(inwardNo) &&
+          _matchesSenderSearch(sender)) {
+        inwardData['inwardNo'] ??= inwardNo;
+        matchedInwards.add(inwardData);
+      }
     }
   }
 
+  matchedInwards.sort((a, b) =>
+      _extractNumber(a['inwardNo']).compareTo(_extractNumber(b['inwardNo'])));
+
   setState(() {
     _lastFilteredDocs = matchedInwards;
-    
   });
-  _lastFilteredDocs.sort((a, b) => _extractNumber(a['inwardNo']).compareTo(_extractNumber(b['inwardNo'])));
-  
 }
+
 
 int calculateDaysDifference(String storedDateStr) {
   // Parse the stored string to DateTime
@@ -356,16 +360,30 @@ String? _selectedEmployee; // e.g., "All", "Pending", "Approved", etc.
                       ],
                     ),
                     SizedBox(height: 10,),
-                    ElevatedButton(
-                      style:  ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
+                    Row(
+                      children: [
+                        ElevatedButton(
+                          style:  ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                        ),
+                          onPressed: (){
+                          setState(() {
+                            isSearchButtonPressed=!isSearchButtonPressed;
+                          });
+                        }, child: Text("Search By")),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.red,
+                            
+                          ),
+                          onPressed: (){
+                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>InwardDeletionPage()));
+                        }, child: Text("Manage Inwards"))
+                      ],
+                      
                     ),
-                      onPressed: (){
-                      setState(() {
-                        isSearchButtonPressed=!isSearchButtonPressed;
-                      });
-                    }, child: Text("Search By")),
                     SizedBox(height: 10,),
                     isSearchButtonPressed?
                      Row(

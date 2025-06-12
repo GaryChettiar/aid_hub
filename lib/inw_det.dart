@@ -1,3 +1,4 @@
+import 'package:finance_manager/main.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -552,7 +553,7 @@ Future<void> launchEmail({
     return  Scaffold(
       appBar: AppBar(
         leading:IconButton(onPressed: () {
-          Navigator.pop(context);
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>Dashboard()));
         },icon: Icon(Icons.arrow_back_rounded),)
       ),
       body: 
