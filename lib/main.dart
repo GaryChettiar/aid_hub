@@ -19,6 +19,11 @@ import 'firebase_options.dart';
 import 'package:finance_manager/inwards_list.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';  
+import 'package:excel/excel.dart' as xls;
+import 'dart:typed_data';
+import 'dart:convert';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -92,7 +97,40 @@ List<List<Map<String, dynamic>>> _chunkedInwards(List<Map<String, dynamic>> list
   }
   return chunks;
 }
+void _downloadFilteredDocsAsExcelWeb() {
+  if (_lastFilteredDocs.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("No data to export.")),
+    );
+    return;
+  }
 
+  final excel = xls.Excel.createExcel();
+  final sheet = excel['FilteredInwards'];
+
+  // 1. Create header row with TextCellValue
+  final headers = _lastFilteredDocs.first.keys.toList();
+  sheet.appendRow(headers.map((h) => xls.TextCellValue(h)).toList());
+
+  // 2. Create data rows similarly
+  for (var doc in _lastFilteredDocs) {
+    final rowValues = headers.map((key) => doc[key]?.toString() ?? '').toList();
+    sheet.appendRow(rowValues.map((v) => xls.TextCellValue(v)).toList());
+  }
+
+  // 3. Generate bytes and trigger browser download
+  final bytes = excel.save(fileName: 'filtered_inwards.xlsx');
+  if (bytes == null) return;
+
+  final blob = html.Blob([bytes], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  final url = html.Url.createObjectUrl(blob);
+
+  final anchor = html.AnchorElement(href: url)
+    ..setAttribute('download', 'filtered_inwards.xlsx')
+    ..click();
+
+  html.Url.revokeObjectUrl(url);
+}
 
   int _extractNumber(String inwardNo) {
   final match = RegExp(r'\d+').firstMatch(inwardNo);
@@ -218,7 +256,7 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.max,
               children: [
-               Image.asset('logo.png',height: 120),
+               Image.asset('assets/logo.png',height: 120),
                 SizedBox(width: 10,),
                 Text('Finance Office Inward File',style: TextStyle(fontSize: 28,fontWeight: FontWeight.bold),),
               ],
@@ -233,14 +271,36 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ElevatedButton(
-                      style:  ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
+                    Row(
+                      children: [
+                        ElevatedButton(
+                          style:  ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                        ),
+                          onPressed: (){
+                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => NewRequest()));
+                        }, child: Text("+ Add Inward")),
+                        SizedBox(width: 10,),
+                        ElevatedButton(
+                           style:  ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                        ),
+                          onPressed: (){
+                          setState(() {
+                            _inwardNoController.clear();
+                          _nameController.clear();
+                          _currentBatchIndex=0;
+                          _currentGroupIndex=0;
+                          _selectedStatus=null;
+                          isSearchButtonPressed=false;
+                          _lastFilteredDocs=[];
+                          });
+                          
+                        }, child: Text("Refresh"))
+                      ],
                     ),
-                      onPressed: (){
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => NewRequest()));
-                    }, child: Text("+ Add Inward")),
                     SizedBox(height: 10,),
                     ElevatedButton(
                       style:  ElevatedButton.styleFrom(
@@ -325,6 +385,35 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
                                   },
                                 ),
                         ),
+                        SizedBox(width: 10,),
+                        groupedInwards.length>1?
+                        Row(
+                          children: [
+                            ElevatedButton(
+               style:  ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                        ),
+              onPressed: _currentGroupIndex > 0
+                  ? () => setState(() => _currentGroupIndex--)
+                  : null,
+              child: const Text('Previous'),
+            ),
+            const SizedBox(width: 16),
+            ElevatedButton(
+               style:  ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                        ),
+              onPressed: _currentGroupIndex < groupedInwards.length - 1
+                  ? () => setState(() => _currentGroupIndex++)
+                  : null,
+              child: const Text('Next'),
+            ),
+                          ],
+                        ):SizedBox.shrink(),
+            
+                        
                       ],
                       )
                       :SizedBox(),
@@ -350,12 +439,22 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
                       foregroundColor: Colors.black,
                     ),
                       onPressed: (){
-                        Navigator.push(context, MaterialPageRoute(builder: (context)=>Contacts()));
+                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>Contacts()));
                       }, child: Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: Text("Contacts"),
                       )),
-            
+                      SizedBox(height: 10,),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white
+                          ),
+                          icon: Icon(Icons.download,color: Colors.white,),
+                          label: Text("Download Excel"),
+                          onPressed: _downloadFilteredDocsAsExcelWeb,
+                        ),
+
                   ],
                 )
               ],
@@ -420,6 +519,9 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
                 child: Text("Inward No",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,)),
                  Expanded(
                 flex: 1,
+                child: Text("Date",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,)),
+                 Expanded(
+                flex: 1,
                 child: Text("Sender",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,)),
               Expanded(
                 flex: 1,
@@ -445,7 +547,7 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
             final data = currentGroup[index];
             return InkWell(
               onTap: () {
-                Navigator.push(
+                Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
                     builder: (context) => UpdateDetails(
@@ -465,6 +567,7 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
                 child: Row(
                   children: [
                     _buildCell(data['inwardNo'] ?? ""),
+                    _buildCell(data['date']??""),
                     _buildCell(data['senderName'] ?? ""),
                     _buildCell(
                       (data['status'] ?? "") +
@@ -483,27 +586,7 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
         ),
 
 ),
-Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              onPressed: _currentGroupIndex > 0
-                  ? () => setState(() => _currentGroupIndex--)
-                  : null,
-              child: const Text('Previous'),
-            ),
-            const SizedBox(width: 16),
-            ElevatedButton(
-              onPressed: _currentGroupIndex < groupedInwards.length - 1
-                  ? () => setState(() => _currentGroupIndex++)
-                  : null,
-              child: const Text('Next'),
-            ),
-          ],
-        ),
-      ),
+
         ],
       ),
     );

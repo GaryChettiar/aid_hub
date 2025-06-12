@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:finance_manager/AddNewSender.dart';
 import 'package:finance_manager/contact_det.dart';
+import 'package:finance_manager/main.dart';
 import 'package:flutter/material.dart';
 
 class Contacts extends StatefulWidget {
@@ -80,7 +81,7 @@ class _ContactsState extends State<Contacts> {
                   children: [
 Row(children: [ 
 IconButton(onPressed: (){
-  Navigator.pop(context);
+  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>Dashboard()));
 }, icon: Icon(Icons.arrow_back_rounded)),
 Text("Contacts",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 34),),
 

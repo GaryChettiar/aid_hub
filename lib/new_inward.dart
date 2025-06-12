@@ -1,4 +1,5 @@
-import 'dart:convert';import 'package:flutter_typeahead/flutter_typeahead.dart';
+import 'dart:convert';import 'package:finance_manager/main.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -734,7 +735,7 @@ _trustNameController.clear();
     return  Scaffold(
       appBar: AppBar(
         leading:IconButton(onPressed: () {
-          Navigator.pop(context);
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>Dashboard()));
         },icon: Icon(Icons.arrow_back_rounded),)
       ),
       backgroundColor: Colors.white,
