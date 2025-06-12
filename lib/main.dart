@@ -106,15 +106,15 @@ void _downloadFilteredDocsAsExcelWeb() {
   }
 
   final excel = xls.Excel.createExcel();
-  final sheet = excel['FilteredInwards'];
+  final sheet = excel['Sheet1'];
 
   // 1. Create header row with TextCellValue
-  final headers = _lastFilteredDocs.first.keys.toList();
+  final headers = ["Inward No", "Date","Sender","Status","Handed Over To","Remarks"];
   sheet.appendRow(headers.map((h) => xls.TextCellValue(h)).toList());
-
+final keys = ["inwardNo","date","senderName","status","handedOverTo","remarks"];
   // 2. Create data rows similarly
   for (var doc in _lastFilteredDocs) {
-    final rowValues = headers.map((key) => doc[key]?.toString() ?? '').toList();
+    final rowValues = keys.map((key) => doc[key]?.toString() ?? '').toList();
     sheet.appendRow(rowValues.map((v) => xls.TextCellValue(v)).toList());
   }
 
@@ -153,7 +153,9 @@ void _downloadFilteredDocsAsExcelWeb() {
       final inwardData = entry.value as Map<String, dynamic>;
       final docStatus = (inwardData['status'] ?? '').toString();
 
-      if (_matchesStatus(docStatus) &&
+      if (
+        _matchesEmployee(inwardData['handedOverTo'])&&
+        _matchesStatus(docStatus) &&
     _matchesInwardSearch(inwardNo) &&
     _matchesSenderSearch(inwardData['senderName'] as String?)) {
   inwardData['inwardNo'] ??= inwardNo;
@@ -233,8 +235,13 @@ setState(() {
   if (_selectedStatus == null || _selectedStatus == 'All') return true;
   return status?.toLowerCase() == _selectedStatus!.toLowerCase();
 }
+bool _matchesEmployee(String? employee) {
+  if (_selectedEmployee == null || _selectedEmployee == 'All') return true;
+  return employee?.toLowerCase() == _selectedEmployee!.toLowerCase();
+}
 
 String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
+String? _selectedEmployee; // e.g., "All", "Pending", "Approved", etc.
 
   @override
   Widget build(BuildContext context) {
@@ -299,6 +306,7 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
                           _currentBatchIndex=0;
                           _currentGroupIndex=0;
                           _selectedStatus=null;
+                          _selectedEmployee=null;
                           isSearchButtonPressed=false;
                           _lastFilteredDocs=[];
                           });
@@ -390,6 +398,39 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
                                   },
                                 ),
                         ),
+                        Container(
+                          width: MediaQuery.sizeOf(context).width * 0.125,
+                          child: DropdownButtonFormField<String>(
+                            onSaved: (newValue) => _performSearch(),
+                                  value: _selectedEmployee,
+                                  decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: Colors.transparent,
+                                    labelText: 'Filter by Employee',
+                                    focusColor: Colors.transparent,
+                                    
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.all(Radius.circular(50))
+                                    ),
+                                    
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  ),
+                                  items: [ 'All','Blaise','Elizabeth','Jacinto','John', 'Sherlyn',]
+                                      .map((status) => DropdownMenuItem(
+                                            value: status,
+                                            child: Text(status),
+                                          ))
+                                      .toList(),
+                                      
+                                  onChanged: (value) {
+
+                                    setState(() {
+                                      _selectedEmployee = value;
+                                    });
+                                    _performSearch();
+                                  },
+                                ),
+                        ),
                         SizedBox(width: 10,),
                         groupedInwards.length>1?
                         Row(
@@ -435,6 +476,7 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
                       ),
                       onPressed: (){
                       FirebaseAuth.instance.signOut();
+                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>AuthNavHandler()));
                     }, child: Text("Logout")),
                     SizedBox(height: 10,),
                     ElevatedButton(

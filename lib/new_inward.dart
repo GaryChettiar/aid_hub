@@ -26,6 +26,7 @@ class _NewRequestState extends State<NewRequest> {
     final TextEditingController _senderCodeController = TextEditingController();
     final TextEditingController _descriptionCodeController = TextEditingController();
     final TextEditingController _descriptionController = TextEditingController();
+    
     final TextEditingController _senderNameController = TextEditingController();
     final TextEditingController _amountController = TextEditingController();
     final TextEditingController _chequeTransactionNoController = TextEditingController();
@@ -56,7 +57,10 @@ final _newSenderEmailController = TextEditingController();
   bool _isLoadingDescriptions = true;
   bool _isLoadingDescReferences = true;
   List<Map<String, String>> _descReferenceItems = [];
+  List<Map<String, String>> _employees = [];
   String? _selectedDescReference;
+  String? employee;
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +68,7 @@ final _newSenderEmailController = TextEditingController();
     _fetchSenders();
     _fetchDescriptions();
     _fetchDescReferences();
+    _fetchEmployees();
   }
   Future<String> getSenderEmailFromBatchedSenders(String senderCode) async {
   final batchSnapshots = await FirebaseFirestore.instance.collection('senders').get();
@@ -187,7 +192,46 @@ Future<void> _fetchDescReferences() async {
     });
   }
 }
+Future<void> _fetchEmployees() async {
+  setState(() {
+    _isLoadingDescReferences = true;
+  });
 
+  try {
+    final snapshot =
+        await FirebaseFirestore.instance.collection('employees').get();
+
+    final List<Map<String, String>> employees= [];
+
+    for (var doc in snapshot.docs) {
+      if (doc.id == 'empMeta') continue; // Skip metadata document
+
+      final data = doc.data() as Map<String, dynamic>;
+
+      int i = 1;
+      while (data.containsKey('emp$i')) {
+        final value = data['emp$i']?.toString() ?? '';
+        if (value.isNotEmpty) {
+          employees.add({'value': value});
+        }
+        i++;
+      }
+    }
+
+    // Add fallback option
+    employees.add({'value': 'Other'});
+
+    setState(() {
+      _employees = employees;
+      _isLoadingDescReferences = false;
+    });
+  } catch (e) {
+    print('Error fetching descReferences: $e');
+    setState(() {
+      _isLoadingDescReferences = false;
+    });
+  }
+}
   Future<void> _fetchDescriptions() async {
   setState(() {
     _isLoadingDescriptions = true;
@@ -551,6 +595,7 @@ _trustNameController.clear();
       _fetchSenders();
       _fetchDescriptions();
       _fetchDescReferences();
+      _fetchEmployees();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to submit request: $e')),
@@ -999,8 +1044,62 @@ _trustNameController.clear();
                  _buildField("Additional Information", controller: _additionalInfoController),
                  SizedBox(height: 15),
              
+              Row(
+                   children: [
+                     Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text("Handed Over To",
+                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                  SizedBox(height: 8),
+                                  TypeAheadField<Map<String, String>>(
+                                    controller: _handedOverToController,
+                                    suggestionsCallback: (pattern) {
+                     return _employees
+                         .where((item) => item['value']!
+                             .toLowerCase()
+                             .contains(pattern.toLowerCase()))
+                         .toList();
+                                    },
+                                    itemBuilder: (context, suggestion) {
+                     return ListTile(
+                       title: Text(suggestion['value'] ?? ''),
+                       // subtitle: Text('Code: ${suggestion['name'] ?? ''}'),
+                     );
+                                    },
+                                    onSelected: (suggestion) {
+                     _handedOverToController.text = suggestion['value']!;
+                     
+                     setState(() {
+                       employee = suggestion['value'];
+                     });
+                                    },
+                                    builder: (context, controller, focusNode) {
+                     return TextFormField(
+                       controller: controller,
+                       focusNode: focusNode,
+                       decoration: InputDecoration(
+                         labelText: 'Handed Over To',
+                         filled: true,
+                         fillColor: Colors.white,
+                                       border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
+                            
+                         contentPadding:
+                             EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                       ),
+                      //  validator: (value) =>
+                      //      value == null || value.isEmpty ? 'Required' : null,
+                     );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                   ],
+                 ),
                  _buildRow([
-                   _buildField("Handed Over To", controller: _handedOverToController),
+                   
                    _buildStatusRadio(),
                  ]),
                  SizedBox(height: 15),
