@@ -2,11 +2,13 @@
 
 import 'dart:core';
 
+import 'package:finance_manager/Login.dart';
 import 'package:finance_manager/contacts.dart';
 import 'package:finance_manager/inw_det.dart';
 import 'package:finance_manager/inward_details.dart';
 import 'package:finance_manager/new_inward.dart';
 import 'package:finance_manager/update.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -34,18 +36,43 @@ class AidHubApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'AOB Finance',
       theme: ThemeData(fontFamily: 'Inter'),
-      home: Dashboard(),
+      home: AuthNavHandler(),
     );
   }
 }
+class AuthNavHandler extends StatelessWidget {
+  const AuthNavHandler({super.key});
 
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        // User is still being loaded
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        // User is signed in
+        if (snapshot.hasData) {
+          return  Dashboard();
+        }
+
+        // User is not signed in
+        return const LoginPage();
+      },
+    );
+  }
+}
 class Dashboard extends StatefulWidget {
   @override
   _DashboardState createState() => _DashboardState();
 }
 
 class _DashboardState extends State<Dashboard> {
-  
+   
 bool isSearchButtonPressed = false;
   final TextEditingController _inwardNoController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
@@ -57,6 +84,16 @@ int _currentBatchIndex=1;
     
     
   }
+  int _currentGroupIndex = 0;
+List<List<Map<String, dynamic>>> _chunkedInwards(List<Map<String, dynamic>> list, int chunkSize) {
+  List<List<Map<String, dynamic>>> chunks = [];
+  for (var i = 0; i < list.length; i += chunkSize) {
+    chunks.add(list.sublist(i, i + chunkSize > list.length ? list.length : i + chunkSize));
+  }
+  return chunks;
+}
+
+
   int _extractNumber(String inwardNo) {
   final match = RegExp(r'\d+').firstMatch(inwardNo);
   return match != null ? int.parse(match.group(0)!) : 0;
@@ -94,6 +131,7 @@ int _currentBatchIndex=1;
     
   });
   _lastFilteredDocs.sort((a, b) => _extractNumber(a['inwardNo']).compareTo(_extractNumber(b['inwardNo'])));
+  
 }
 
 int calculateDaysDifference(String storedDateStr) {
@@ -162,6 +200,10 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
 
   @override
   Widget build(BuildContext context) {
+    final groupedInwards = _chunkedInwards(_lastFilteredDocs, 30);
+     final currentGroup = groupedInwards.isNotEmpty
+      ? groupedInwards[_currentGroupIndex]
+      : [];
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
@@ -394,57 +436,74 @@ String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
   child: _lastFilteredDocs.isEmpty
       ? Center(child: Text((_inwardNoController.text.isEmpty && _nameController.text.isEmpty )?"":'No data matches the filter'))
       : GridView.builder(
-  
-  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-    crossAxisCount: 1,
-    // mainAxisSpacing: 4,
-    childAspectRatio: 30, // Higher value = shorter height
-  ),
-  itemCount: _lastFilteredDocs.length,
-  itemBuilder: (context, index) {
-    final data = _lastFilteredDocs[index];
-
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UpdateDetails(
-              inwardNo: data['inwardNo'],
-              batchId: "batch-$_currentBatchIndex",
-            ),
+          itemCount: currentGroup.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 1,
+            childAspectRatio: 30,
           ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade400),
-          borderRadius: BorderRadius.circular(4),
-          color: Colors.white,
+          itemBuilder: (context, index) {
+            final data = currentGroup[index];
+            return InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => UpdateDetails(
+                      inwardNo: data['inwardNo'],
+                      batchId: "batch-$_currentBatchIndex",
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade400),
+                  borderRadius: BorderRadius.circular(4),
+                  color: Colors.white,
+                ),
+                child: Row(
+                  children: [
+                    _buildCell(data['inwardNo'] ?? ""),
+                    _buildCell(data['senderName'] ?? ""),
+                    _buildCell(
+                      (data['status'] ?? "") +
+                          ((data['status'] == "Pending")
+                              ? " (${calculateDaysDifference(data['date'])}d)"
+                              : ""),
+                      color: data['status'] == "Pending" ? Colors.red : null,
+                    ),
+                    _buildCell(data['handedOverTo'] ?? ""),
+                    _buildCell(data['remarks'] ?? ""),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
+
+),
+Padding(
+        padding: const EdgeInsets.all(12.0),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildCell(data['inwardNo'] ?? ""),
-            _buildCell(data['senderName'] ?? ""),
-            _buildCell(
-              (data['status'] ?? "") +
-                  ((data['status'] == "Pending")
-                      ? " (${calculateDaysDifference(data['date'])}d)"
-                      : ""),
-              color: data['status'] == "Pending" ? Colors.red : null,
+            ElevatedButton(
+              onPressed: _currentGroupIndex > 0
+                  ? () => setState(() => _currentGroupIndex--)
+                  : null,
+              child: const Text('Previous'),
             ),
-            _buildCell(data['handedOverTo'] ?? ""),
-             _buildCell(data['remarks'] ?? ""),
+            const SizedBox(width: 16),
+            ElevatedButton(
+              onPressed: _currentGroupIndex < groupedInwards.length - 1
+                  ? () => setState(() => _currentGroupIndex++)
+                  : null,
+              child: const Text('Next'),
+            ),
           ],
         ),
       ),
-    );
-  },
-)
-
-),
-
         ],
       ),
     );
