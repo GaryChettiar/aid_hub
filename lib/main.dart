@@ -88,8 +88,30 @@ int _currentBatchIndex=1;
   void initState() {
     super.initState();
     _fetchEmployees();
-    
+    _fetchEmailTemplateKeys();
   }
+  List _templates=[];
+  Future<void> _fetchEmailTemplateKeys() async {
+  try {
+    final docSnap = await FirebaseFirestore.instance
+        .collection('descref')
+        .doc('refs') // Same name for doc and collection
+        .get();
+
+    final data = docSnap.data();
+
+    if (data != null && data.containsKey('refs')) {
+      final List<dynamic> templateList = data['refs'];
+      templateList.add("All");
+
+      setState(() {
+        _templates = templateList;
+      });
+    }
+  } catch (e) {
+    print('Error fetching template keys: $e');
+  }
+}
   int _currentGroupIndex = 0;
 List<List<Map<String, dynamic>>> _chunkedInwards(List<Map<String, dynamic>> list, int chunkSize) {
   List<List<Map<String, dynamic>>> chunks = [];
@@ -111,9 +133,9 @@ void _downloadFilteredDocsAsExcelWeb() {
   final sheet = excel['Sheet1'];
 
   // 1. Create header row with TextCellValue
-  final headers = ["Inward No", "Date","Sender","Status","Handed Over To","Remarks"];
+  final headers = ["Inward No", "Date","Sender","Status","Specification","Handed Over To","Remarks"];
   sheet.appendRow(headers.map((h) => xls.TextCellValue(h)).toList());
-final keys = ["inwardNo","date","senderName","status","handedOverTo","remarks"];
+final keys = ["inwardNo","date","senderName","status","descriptionReference","handedOverTo","remarks"];
   // 2. Create data rows similarly
   for (var doc in _lastFilteredDocs) {
     final rowValues = keys.map((key) => doc[key]?.toString() ?? '').toList();
@@ -159,8 +181,11 @@ void _performSearch() async {
       final status = (inwardData['status'] ?? '').toString();
       final sender = inwardData['senderName']?.toString();
       final handedOver = inwardData['handedOverTo']?.toString();
+      final emailType = inwardData['descriptionReference']?.toString();
 
-      if (_matchesEmployee(handedOver) &&
+      if (
+        _matchesEmailType(emailType)&&
+        _matchesEmployee(handedOver) &&
           _matchesStatus(status) &&
           _matchesInwardSearch(inwardNo) &&
           _matchesSenderSearch(sender)) {
@@ -244,6 +269,11 @@ bool _matchesEmployee(String? employee) {
   if (_selectedEmployee == null || _selectedEmployee == 'All') return true;
   return employee?.toLowerCase() == _selectedEmployee!.toLowerCase();
 }
+
+bool _matchesEmailType(String? email) {
+  if (_selectedTemplate == null || _selectedTemplate == 'All') return true;
+  return email?.toLowerCase() == _selectedTemplate!.toLowerCase();
+}
 Future<void> _fetchEmployees() async {
   setState(() {
     // _isLoadingDescReferences = true;
@@ -286,7 +316,9 @@ setState(() {
 }
 
 String? _selectedStatus; // e.g., "All", "Pending", "Approved", etc.
-String? _selectedEmployee; // e.g., "All", "Pending", "Approved", etc.
+String? _selectedEmployee; 
+String? _selectedTemplate; // e.g., "All", "Pending", "Approved", etc.
+// e.g., "All", "Pending", "Approved", etc.
 
   @override
   Widget build(BuildContext context) {
@@ -486,14 +518,40 @@ String? _selectedEmployee; // e.g., "All", "Pending", "Approved", etc.
                                           ),
                         ),
                         SizedBox(width: 10,),
-                       
+                           
             
                         
                       ],
                       )
                       :SizedBox(),
-                  
-                  
+                  isSearchButtonPressed? SizedBox(height: 10,):SizedBox.shrink(),
+                 isSearchButtonPressed? Container(
+                             width: MediaQuery.sizeOf(context).width * 0.16,
+                          child: DropdownButtonFormField<String>(
+                                            value: _selectedTemplate,
+                                            decoration: InputDecoration(
+                                              filled: true,
+                                              fillColor: Colors.white,
+                                              labelText: 'Filter by Email type',
+                                              border: OutlineInputBorder(
+                                                borderRadius: BorderRadius.circular(50),
+                                              ),
+                                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                            ),
+                                            items: _templates.map((temp) {
+                                              return DropdownMenuItem<String>(
+                                                value: temp,
+                                                child: Text(temp),
+                                              );
+                                            }).toList(),
+                                            onChanged: (value) {
+                                              setState(() {
+                                                _selectedTemplate = value;
+                                              });
+                                              _performSearch();
+                                            },
+                                          ),
+                        ):SizedBox.shrink(),
                   ],
                 ),
                 Column(
@@ -647,6 +705,10 @@ String? _selectedEmployee; // e.g., "All", "Pending", "Approved", etc.
                 child: Text("Status",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,)),
               Expanded(
                 flex: 1,
+                child: Text("Specification",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,)),
+                
+              Expanded(
+                flex: 1,
                 child: Text("Handed Over To",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,)),
                 Expanded(
                 flex: 1,
@@ -704,6 +766,7 @@ String? _selectedEmployee; // e.g., "All", "Pending", "Approved", etc.
                               : ""),
                       color: data['status'] == "Pending" ? Colors.red : null,
                     ),
+                      _buildCell(data['descriptionReference'] ?? ""),
                     _buildCell(data['handedOverTo'] ?? ""),
                     _buildCell(data['remarks'] ?? ""),
                   ],
