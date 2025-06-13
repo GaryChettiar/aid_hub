@@ -686,7 +686,16 @@ String? _selectedEmployee; // e.g., "All", "Pending", "Approved", etc.
                 child: Row(
                   children: [
                     _buildCell(data['inwardNo'] ?? ""),
-                    _buildCell(data['date']??""),
+                   _buildCell(
+  data['date'] != null && data['date'].toString().isNotEmpty
+      ? (() {
+          final parts = data['date'].split("-");
+          return parts.length == 3
+              ? "${parts[2]}/${parts[1]}/${parts[0]}"
+              : data['date'];
+        })()
+      : "",
+),
                     _buildCell(data['senderName'] ?? ""),
                     _buildCell(
                       (data['status'] ?? "") +

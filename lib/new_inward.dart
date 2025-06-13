@@ -123,32 +123,47 @@ Future<void> _fetchSenders() async {
   });
 
   try {
-    final snapshot = await FirebaseFirestore.instance.collection('senders').get();
+    final firestore = FirebaseFirestore.instance;
+
+    // Step 1: Read metadata
+    final metaDoc = await firestore.collection('senders').doc('senderMeta').get();
+    final metaData = metaDoc.data();
+    final batchCounts = Map<String, dynamic>.from(metaData?['batchCounts'] ?? {});
+    final expectedTotal = batchCounts.values.fold(0, (sum, val) => sum + (val as int));
+
     final List<Map<String, String>> items = [];
 
-    for (var doc in snapshot.docs) {
-      if (doc.id == 'senderMeta') continue; // Skip metadata doc
-      final data = doc.data() as Map<String, dynamic>;
+    // Step 2: Loop through each batch by metadata count
+    for (final batchName in batchCounts.keys) {
+      final batchDoc = await firestore.collection('senders').doc(batchName).get();
+      final data = batchDoc.data();
+      if (data == null) continue;
 
-      int i = 1;
-      while (data.containsKey('scode$i') && data.containsKey('sname$i')) {
-        items.add({
-          'code': data['scode$i']?.toString() ?? '',
-          'name': data['sname$i']?.toString() ?? '',
-        });
-        i++;
+      final int count = batchCounts[batchName];
+
+      for (int i = 1; i <= count; i++) {
+        final code = data['scode$i']?.toString() ?? '';
+        final name = data['sname$i']?.toString() ?? '';
+        if (code.isNotEmpty && name.isNotEmpty) {
+          items.add({'code': code, 'name': name});
+        } else {
+          print('⚠️ Missing pair at $batchName: scode$i or sname$i');
+        }
       }
     }
 
-    // Add "Other" option at end
+    // Step 3: Add "Other" option
     items.add({'code': 'Other', 'name': 'Other'});
+
+    // Step 4: Final count check
+    print('✅ Loaded ${items.length - 1} of $expectedTotal senders'); // -1 to exclude "Other"
 
     setState(() {
       _senderItems = items;
       _isLoadingSenders = false;
     });
   } catch (e) {
-    print('Error fetching senders: $e');
+    print('❌ Error fetching senders: $e');
     setState(() {
       _isLoadingSenders = false;
     });
@@ -160,40 +175,51 @@ Future<void> _fetchDescReferences() async {
   });
 
   try {
-    final snapshot =
-        await FirebaseFirestore.instance.collection('descref').get();
+    final firestore = FirebaseFirestore.instance;
+
+    // Step 1: Get metadata
+    final metaDoc = await firestore.collection('descref').doc('descrefMeta').get();
+    final metaData = metaDoc.data();
+    final batchCountMap = Map<String, dynamic>.from(metaData?['batchCount'] ?? {});
+    final expectedTotal = batchCountMap.values.fold(0, (sum, val) => sum + (val as int));
 
     final List<Map<String, String>> descReferenceItems = [];
 
-    for (var doc in snapshot.docs) {
-      if (doc.id == 'descrefMeta') continue; // Skip metadata document
+    // Step 2: Loop through each batch
+    for (final batchName in batchCountMap.keys) {
+      final batchDoc = await firestore.collection('descref').doc(batchName).get();
+      final data = batchDoc.data();
+      if (data == null) continue;
 
-      final data = doc.data() as Map<String, dynamic>;
+      final int count = batchCountMap[batchName];
 
-      int i = 1;
-      while (data.containsKey('ref$i')) {
+      for (int i = 1; i <= count; i++) {
         final value = data['ref$i']?.toString() ?? '';
         if (value.isNotEmpty) {
           descReferenceItems.add({'value': value});
+        } else {
+          print('⚠️ Missing value at $batchName: ref$i');
         }
-        i++;
       }
     }
 
-    // Add fallback option
+    // Step 3: Add fallback "Other"
     descReferenceItems.add({'value': 'Other'});
+
+    print('✅ Loaded ${descReferenceItems.length - 1} of $expectedTotal descReferences');
 
     setState(() {
       _descReferenceItems = descReferenceItems;
       _isLoadingDescReferences = false;
     });
   } catch (e) {
-    print('Error fetching descReferences: $e');
+    print('❌ Error fetching descReferences: $e');
     setState(() {
       _isLoadingDescReferences = false;
     });
   }
 }
+
 Future<void> _fetchEmployees() async {
   setState(() {
     // _isLoadingDescReferences = true;
@@ -233,45 +259,58 @@ setState(() {
       // _isLoadingDescReferences = false;
     });
   }
-}
-  Future<void> _fetchDescriptions() async {
+}Future<void> _fetchDescriptions() async {
   setState(() {
     _isLoadingDescriptions = true;
   });
 
   try {
-    final snapshot = await FirebaseFirestore.instance.collection('descriptions').get();
+    final firestore = FirebaseFirestore.instance;
+
+    // Step 1: Read metadata
+    final metaDoc = await firestore.collection('descriptions').doc('descMeta').get();
+    final metaData = metaDoc.data();
+    final batchCounts = Map<String, dynamic>.from(metaData?['batchCounts'] ?? {});
+    final expectedTotal = batchCounts.values.fold(0, (sum, val) => sum + (val as int));
+
     final List<Map<String, String>> items = [];
 
-    for (var doc in snapshot.docs) {
-      if (doc.id == 'descMeta') continue; // Skip metadata document
-      final data = doc.data() as Map<String, dynamic>;
+    // Step 2: Loop through batches using metadata count
+    for (final batchName in batchCounts.keys) {
+      final batchDoc = await firestore.collection('descriptions').doc(batchName).get();
+      final data = batchDoc.data();
+      if (data == null) continue;
 
-      int i = 1;
-      while (data.containsKey('dcode$i') && data.containsKey('ddesc$i')) {
-        items.add({
-          'name': data['dcode$i']?.toString() ?? '',
-          'desc': data['ddesc$i']?.toString() ?? '',
-        });
-        i++;
+      final int count = batchCounts[batchName];
+
+      for (int i = 1; i <= count; i++) {
+        final code = data['dcode$i']?.toString() ?? '';
+        final desc = data['ddesc$i']?.toString() ?? '';
+        if (code.isNotEmpty && desc.isNotEmpty) {
+          items.add({'name': code, 'desc': desc});
+        } else {
+          print('⚠️ Missing at $batchName: dcode$i or ddesc$i');
+        }
       }
     }
 
-    // Optional: Add "Other" at end
+    // Step 3: Add "Other" option
     items.add({'name': 'Other', 'desc': 'Other'});
+
+    // Step 4: Log results
+    print('✅ Loaded ${items.length - 1} of $expectedTotal descriptions'); // -1 to exclude "Other"
 
     setState(() {
       _descriptionItems = items;
       _isLoadingDescriptions = false;
     });
   } catch (e) {
-    print('Error fetching descriptions: $e');
+    print('❌ Error fetching descriptions: $e');
     setState(() {
       _isLoadingDescriptions = false;
     });
   }
 }
-
 
    
 
@@ -500,7 +539,7 @@ Future<void> launchEmail({
 
   final descRef = FirebaseFirestore.instance.collection('descriptions').doc(currentBatch);
   await descRef.set({
-    'dname${currentCount + 1}': _newDescriptionDetailsController.text.trim(),
+    'ddesc${currentCount + 1}': _newDescriptionDetailsController.text.trim(),
     'dcode${currentCount + 1}': _newDescriptionCodeController.text.trim(),
   }, SetOptions(merge: true));
 
@@ -558,7 +597,7 @@ Future<void> launchEmail({
   if (docSnap.exists) {
     List<dynamic> currentList = docSnap.data()?['emp'] ?? [];
 
-    final newEmployee = _newEmployeeController.text.trim();
+    final newEmployee = _newEmployeeController  .text.trim();
 
     if (newEmployee.isNotEmpty && !currentList.contains(newEmployee)) {
       // Append new employee to list and update Firestore
