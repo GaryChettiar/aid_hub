@@ -39,6 +39,8 @@ class _NewRequestState extends State<NewRequest> {
     final TextEditingController _commentsController = TextEditingController();
     final TextEditingController _additionalInfoController = TextEditingController();
     final TextEditingController _handedOverToController = TextEditingController();
+    final TextEditingController _emailTypeController = TextEditingController();
+
     final TextEditingController _pendingFromDaysController = TextEditingController();
     final TextEditingController _remarksController = TextEditingController();
 
@@ -71,7 +73,9 @@ final _newSenderEmailController = TextEditingController();
     _fetchDescriptions();
     _fetchDescReferences();
     _fetchEmployees();
+    _fetchEmailTemplateKeys();
   }
+  List<dynamic> _templates=[];
   Future<String> getSenderEmailFromBatchedSenders(String senderCode) async {
   final batchSnapshots = await FirebaseFirestore.instance.collection('senders').get();
 
@@ -219,7 +223,19 @@ Future<void> _fetchDescReferences() async {
     });
   }
 }
+Future<String?> getEmailTemplate(String templateKey) async {
+  try {
+    final doc = await FirebaseFirestore.instance
+        .collection('emailTemplates')
+        .doc('default')
+        .get();
 
+    return doc.data()?[templateKey] ?? '';
+  } catch (e) {
+    print('Error fetching template: $e');
+    return '';
+  }
+}
 Future<void> _fetchEmployees() async {
   setState(() {
     // _isLoadingDescReferences = true;
@@ -259,7 +275,30 @@ setState(() {
       // _isLoadingDescReferences = false;
     });
   }
-}Future<void> _fetchDescriptions() async {
+}
+Future<void> _fetchEmailTemplateKeys() async {
+  try {
+    final docSnap = await FirebaseFirestore.instance
+        .collection('emailTemplates')
+        .doc('templates') // Same name for doc and collection
+        .get();
+
+    final data = docSnap.data();
+
+    if (data != null && data.containsKey('templates')) {
+      final List<dynamic> templateList = data['templates'];
+      templateList.add("Other");
+
+      setState(() {
+        _templates = templateList;
+      });
+    }
+  } catch (e) {
+    print('Error fetching template keys: $e');
+  }
+}
+
+Future<void> _fetchDescriptions() async {
   setState(() {
     _isLoadingDescriptions = true;
   });
@@ -625,12 +664,19 @@ Future<void> launchEmail({
       );
 
       if (data['senderEmail'] != "") {
-        launchEmail(
-          toEmail: data['senderEmail'].toString(),
-          subject: 'Letter/Courier Received Acknowledgement',
-          body: 'Request submitted successfully!',
-        );
-      }
+  final template = await getEmailTemplate(_emailTypeController.text);
+
+  final personalizedBody = template!
+      .replaceAll('xxxxx', data['date'].toString()) // example date
+      .replaceAll('xxxx', data['senderName'].toString());  // example name or fallback
+
+  await launchEmail(
+    toEmail: data['senderEmail'].toString(),
+    subject: 'Letter/Courier Received Acknowledgement',
+    body: personalizedBody,
+  );
+}
+
 
       /// Reset Form
       _formKey.currentState!.reset();
@@ -1176,6 +1222,63 @@ _trustNameController.clear();
                   _buildRow([
                    _buildField("New Employee", controller: _newEmployeeController),
                  ]): SizedBox(width: 20),
+                 Row(
+                   children: [
+                    Expanded(
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        "Email Type",
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
+      SizedBox(height: 8),
+      TypeAheadField<String>(
+        controller: _emailTypeController,
+        suggestionsCallback: (pattern) {
+  return _templates
+      .where((item) => item.toLowerCase().contains(pattern.toLowerCase()))
+      .cast<String>()
+      .toList();
+},
+
+        itemBuilder: (context, suggestion) {
+          return ListTile(
+            title: Text(suggestion),
+          );
+        },
+        onSelected: (suggestion) {
+          _emailTypeController.text = suggestion;
+
+          setState(() {
+            employee = suggestion;
+          });
+        },
+        builder: (context, controller, focusNode) {
+          return TextFormField(
+            controller: controller,
+            focusNode: focusNode,
+            decoration: InputDecoration(
+              labelText: 'Email type',
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: Colors.black, width: 1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            ),
+            // validator: (value) =>
+            //     value == null || value.isEmpty ? 'Required' : null,
+          );
+        },
+      ),
+    ],
+  ),
+)
+
+                   ],
+                 ),
                  _buildRow([
                    
                    _buildStatusRadio(),
