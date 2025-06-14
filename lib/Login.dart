@@ -1,4 +1,4 @@
-import 'package:finance_manager/SignUp.dart';
+import 'package:finance_manager/Signup.dart';
 import 'package:finance_manager/main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';

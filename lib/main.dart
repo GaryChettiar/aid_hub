@@ -299,35 +299,148 @@ String? _selectedEmployee; // e.g., "All", "Pending", "Approved", etc.
 
   @override
   Widget build(BuildContext context) {
+    final email = FirebaseAuth.instance.currentUser?.email ?? "";
+    final initials = email.isNotEmpty ? email[0].toUpperCase() : "?";
     final groupedInwards = _chunkedInwards(_lastFilteredDocs, 30);
      final currentGroup = groupedInwards.isNotEmpty
       ? groupedInwards[_currentGroupIndex]
       : [];
     return Scaffold(
+     endDrawer: Drawer(
+      backgroundColor: Color(0xff1E1E1E),
+      child: Stack(
+         alignment: Alignment.center,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 20),
+              // Avatar
+             CircleAvatar(
+            radius: 60,
+            backgroundColor: Colors.grey[400],
+            child: Text(
+              initials,
+              style: const TextStyle(
+                fontSize: 40,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+          ),
+              const SizedBox(height: 20),
+              // Email
+              Text(
+                FirebaseAuth.instance.currentUser?.email ?? "No email",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              SizedBox(height: 10,),
+              InkWell(
+                
+                onTap: (){
+                     Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>InwardDeletionPage()));
+                },
+                child: Container(
+                  
+                  alignment: Alignment.center,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: Colors.grey,
+                      width: 1
+                    )
+                  ),
+                  height: 50,
+                  child: Text("Manage Inwards",style: TextStyle(color: Colors.white),),
+                ),
+              )
+            ],
+          ),
+          
+          // Logout button aligned to bottom right
+          Positioned(
+            bottom: 20,
+            right: 20,
+            child: ElevatedButton(
+              style:ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white
+              ),
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                if (context.mounted) {
+                  Navigator.of(context).pop(); // close drawer
+                  // Navigate to login page if needed:
+                  // Navigator.of(context).pushReplacementNamed('/login');
+                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>LoginPage()));
+                }
+              },
+              child: const Text(
+                'Logout',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          )
+        ],
+      ),
+    ),
+appBar: AppBar(
+  actions: [
+    Builder( // <-- This gives access to Scaffold context
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.only(right:28.0),
+          child: IconButton(
+            onPressed: () {
+              Scaffold.of(context).openEndDrawer();
+            },
+            icon: Icon(Icons.person,size: 30,color: Colors.black,),
+          ),
+        );
+      },
+    )
+  ],
+  toolbarHeight: 100,
+  title: Padding(
+    padding: const EdgeInsets.all(8.0),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.max,
+      children: [
+        Row(
+          children: [
+            Image.asset('assets/logo.png', height: 120),
+            SizedBox(width: 10),
+            Column(
+              children: [
+                Text('Finance Office',
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                Text('Inward File',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ],
+        ),
+      ],
+    ),
+  ),
+),
+
       backgroundColor: Colors.white,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            color: const Color.fromARGB(61, 201, 201, 201),
-            child: Row(
-              
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.max,
-              children: [
-               Image.asset('assets/logo.png',height: 120),
-                SizedBox(width: 10,),
-                Column(
-                  children: [
-                    Text('Finance Office',style: TextStyle(fontSize: 28,fontWeight: FontWeight.bold),),
-                    Text('Inward File',style: TextStyle(fontSize: 24,fontWeight: FontWeight.bold),),
-                  ],
-                )
-              ],
-            ),
-          ),
+         
           SizedBox(height: 50),
           Padding(
             padding: const EdgeInsets.all(18.0),
@@ -381,15 +494,15 @@ String? _selectedEmployee; // e.g., "All", "Pending", "Approved", etc.
                             isSearchButtonPressed=!isSearchButtonPressed;
                           });
                         }, child: Text("Search By")),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.red,
+                        // ElevatedButton(
+                        //   style: ElevatedButton.styleFrom(
+                        //     backgroundColor: Colors.white,
+                        //     foregroundColor: Colors.red,
                             
-                          ),
-                          onPressed: (){
-                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>InwardDeletionPage()));
-                        }, child: Text("Manage Inwards"))
+                        //   ),
+                        //   onPressed: (){
+                        //   Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>InwardDeletionPage()));
+                        // }, child: Text("Manage Inwards"))
                       ],
                       
                     ),
@@ -507,16 +620,7 @@ String? _selectedEmployee; // e.g., "All", "Pending", "Approved", etc.
                 ),
                 Column(
                   children: [
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:  Colors.redAccent,
-                        foregroundColor: Colors.white
-                      ),
-                      onPressed: (){
-                      FirebaseAuth.instance.signOut();
-                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>AuthNavHandler()));
-                    }, child: Text("Logout")),
-                    SizedBox(height: 10,),
+                    
                     ElevatedButton(
                       
                        style:  ElevatedButton.styleFrom(
