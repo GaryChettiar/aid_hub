@@ -488,7 +488,6 @@ Future<void> launchEmail({
         'comments': _commentsController.text.trim(),
         'additionalInformation': _additionalInfoController.text.trim(),
         'handedOverTo':employee=="Other"?_newEmployeeController.text.trim():employee,
-        'emailType':_emailTypeController.text.trim(),
         'status': _status,
         'pendingFromDays': _pendingFromDaysController.text.trim(),
         'remarks': _remarksController.text.trim(),
@@ -700,8 +699,6 @@ Future<void> launchEmail({
       _commentsController.clear();
       _additionalInfoController.clear();
       _handedOverToController.clear();
-      _emailTypeController.clear();
-
       _pendingFromDaysController.clear();
       _remarksController.clear();
       _receivedByController.clear();
