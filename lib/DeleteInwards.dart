@@ -1,13 +1,8 @@
 import 'package:finance_manager/main.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:convert';
-// import 'dart:io';
-import 'package:http/http.dart' as http;
-import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'package:googleapis/sheets/v4.dart' as sheets;
-// import 'package:googleapis_auth/auth_io.dart';
+
 class InwardDeletionPage extends StatefulWidget {
   @override
   _InwardDeletionPageState createState() => _InwardDeletionPageState();
@@ -64,8 +59,13 @@ class _InwardDeletionPageState extends State<InwardDeletionPage> {
       }
     });
   }
-Future<void> _deleteSelected() async {
-  final metaRef = FirebaseFirestore.instance.collection('groupedInwards').doc('meta');
+  Future<void> _deleteSelected() async {
+  final primaryFirestore = FirebaseFirestore.instanceFor(app: primaryApp);
+  final secondaryFirestore = FirebaseFirestore.instanceFor(app: secondaryApp);
+  final auth = FirebaseAuth.instanceFor(app: primaryApp);
+  final userEmail = auth.currentUser?.email ?? "unknown_user@example.com";
+
+  final metaRef = primaryFirestore.collection('groupedInwards').doc('meta');
   final metaSnap = await metaRef.get();
 
   Map<String, dynamic> batchCount = {};
@@ -73,105 +73,52 @@ Future<void> _deleteSelected() async {
   if (metaSnap.exists) {
     batchCount = Map<String, dynamic>.from(metaSnap.data()?['batchCount'] ?? {});
   } else {
-    final batchDocs = await FirebaseFirestore.instance.collection('groupedInwards').get();
-
+    final batchDocs = await primaryFirestore.collection('groupedInwards').get();
     for (var doc in batchDocs.docs) {
       if (doc.id == 'meta') continue;
       batchCount[doc.id] = doc.data().length;
     }
-
     await metaRef.set({
       'currentBatch': 'batch-1',
       'batchCount': batchCount,
     });
   }
 
-  final userEmail = FirebaseAuth.instance.currentUser?.email ?? 'unknown';
-  final timestamp = DateTime.now().toIso8601String();
-  const scriptUrl = 'https://script.google.com/macros/s/AKfycbyjg2_tryH7blQTNZC-X5aXLPO9ckkOkH44dO_0-c2faPQZ081m7TyIg7XW8B_XUFWBYg/exec'; // Replace this
-
   for (var entry in _selectedInwards.entries) {
     final batchId = entry.key;
     final inwardIds = entry.value;
 
-    final batchRef = FirebaseFirestore.instance.collection('groupedInwards').doc(batchId);
-    final batchSnap = await batchRef.get();
-    final batchData = batchSnap.data() ?? {};
+    final batchRef = primaryFirestore.collection('groupedInwards').doc(batchId);
+    final docSnap = await batchRef.get();
+    final batchData = docSnap.data();
 
-    final updates = <String, dynamic>{};
+    if (batchData == null) continue;
+
+    Map<String, dynamic> updates = {};
+    Map<String, dynamic> deletedData = {};
 
     for (var id in inwardIds) {
-      final deletedData = batchData[id] ?? {};
-      updates[id] = FieldValue.delete();
-final data = deletedData; // original Firestore map
-final convertedData = _convertTimestampsToStrings(data);
-      // Log deletion to Google Sheets
-      await _logToGoogleSheets(
-        email: userEmail,
-        batchId: batchId,
-        inwardId: id,
-        data: convertedData,
-      );
+      if (batchData.containsKey(id)) {
+        updates[id] = FieldValue.delete();
+        deletedData[id] = {
+          ...batchData[id],
+          'deletedAt': FieldValue.serverTimestamp(),
+          'deletedBy': userEmail,
+        };
+      }
     }
 
     await batchRef.update(updates);
 
     int current = batchCount[batchId] ?? 0;
     batchCount[batchId] = current - inwardIds.length;
+
+    final backupRef = secondaryFirestore.collection('deletedInwards').doc(batchId);
+    await backupRef.set(deletedData, SetOptions(merge: true));
   }
 
   await metaRef.update({'batchCount': batchCount});
   await _fetchInwards(); // Refresh UI
-}
-
-Map<String, dynamic> _cleanData(Map<String, dynamic> data) {
-  return data.map((key, value) {
-    if (value is Timestamp) {
-      return MapEntry(key, value.toDate().toIso8601String());
-    } else if (value is Map) {
-      return MapEntry(key, _cleanData(Map<String, dynamic>.from(value)));
-    } else {
-      return MapEntry(key, value);
-    }
-  });
-}
-Future<void> _logToGoogleSheets({
-  required String email,
-  required String batchId,
-  required String inwardId,
-  required Map<String, dynamic> data,
-}) async {
-  const scriptUrl = 'https://script.google.com/macros/s/AKfycbyjg2_tryH7blQTNZC-X5aXLPO9ckkOkH44dO_0-c2faPQZ081m7TyIg7XW8B_XUFWBYg/exec';
-
-  try {
-    final response = await http.post(
-      Uri.parse(scriptUrl),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        'email': email,
-        'batchId': batchId,
-        'inwardId': inwardId,
-        'data': data,
-      }),
-    );
-
-    if (response.statusCode != 200) {
-      print('Log to Google Sheets failed: ${response.body}');
-    }
-  } catch (e) {
-    print('Log to Google Sheets failed: $e');
-  }
-}
-Map<String, dynamic> _convertTimestampsToStrings(Map<String, dynamic> input) {
-  return input.map((key, value) {
-    if (value is Timestamp) {
-      return MapEntry(key, value.toDate().toIso8601String());
-    } else if (value is Map) {
-      return MapEntry(key, _convertTimestampsToStrings(Map<String, dynamic>.from(value)));
-    } else {
-      return MapEntry(key, value);
-    }
-  });
 }
 
 

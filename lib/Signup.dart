@@ -117,21 +117,17 @@ class _SignupPageState extends State<SignupPage> {
                       child: const Text("Sign Up"),
                     ),
                   ),
-                   const SizedBox(height: 20),
-                  Row(
-                    mainAxisSize: MainAxisSize.max,
+                    Row(
                     mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.max,
                     children: [
-                          Text("Already have an account? ",style: GoogleFonts.inter(color: Colors.black),),
-                          InkWell(
-                            onTap: () {
-                              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>LoginPage()));
-                            },
-                            child: Text("Login",style: const TextStyle(
-                           color: Colors.white,
-                           decoration: TextDecoration.underline,
-                         ),),
-                          )
+                      Text("Already have an account? ",style: GoogleFonts.inter(color: Colors.black),),
+                      InkWell(
+                        onTap: (){
+                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>LoginPage()));
+                        },
+                        child: Text("Login"),
+                      )
                     ],
                   ),
                 ],

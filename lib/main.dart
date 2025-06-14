@@ -25,10 +25,19 @@ import 'dart:typed_data';
 import 'dart:convert';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
+import 'firebase_options_secondary.dart';
+
+late FirebaseApp primaryApp;
+late FirebaseApp secondaryApp;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
+   primaryApp = await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  secondaryApp = await Firebase.initializeApp(
+    name: 'secondaryApp',
+    options: SecondaryFirebaseOptions.web,
   );
   runApp(const AidHubApp());
 }

@@ -43,10 +43,6 @@ class _NewRequestState extends State<NewRequest> {
 
     final TextEditingController _pendingFromDaysController = TextEditingController();
     final TextEditingController _remarksController = TextEditingController();
-final FocusNode _senderFocusNode = FocusNode();
-final FocusNode _descFocusNode = FocusNode();
-
-Map<String, String>? _highlightedSuggestion;
 
     
     String? _status; // For radio buttons
@@ -750,48 +746,33 @@ _trustNameController.clear();
       );
     }
 
-    Widget _buildField(String label, {
-  TextEditingController? controller,
-  bool readOnly = false,
-  FocusNode? focusNode,
-  FocusNode? nextFocusNode,
-}) {
-  controller ??= TextEditingController();
-  focusNode ??= FocusNode();
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        label,
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF212529)),
-      ),
-      SizedBox(height: 5),
-      TextFormField(
-        controller: controller,
-        focusNode: focusNode,
-        readOnly: readOnly,
-        onFieldSubmitted: (_) {
-          if (nextFocusNode != null) {
-            FocusScope.of(focusNode!.context!).requestFocus(nextFocusNode);
-          } else {
-            FocusScope.of(focusNode!.context!).unfocus(); // Dismiss keyboard if no next field
-          }
-        },
-        decoration: InputDecoration(
-          hintText: "Enter $label",
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.black, width: 1),
-            borderRadius: BorderRadius.circular(8),
+    Widget _buildField(String label, {TextEditingController? controller, bool readOnly = false}) {
+      controller ??= TextEditingController();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF212529))),
+          SizedBox(height: 5),
+          TextFormField(
+            controller: controller,
+            readOnly: readOnly,
+            // validator: (value) {
+            //   if (!readOnly && (value == null || value.isEmpty)) {
+            //     return 'Please enter $label';
+            //   }
+            //   return null;
+            // },
+            decoration: InputDecoration(
+              hintText: "Enter $label",
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
+            ),
           ),
-        ),
-      ),
-    ],
-  );
-}
-
+        ],
+      );
+    }
 
     Widget _buildDatePicker(String label, TextEditingController controller, VoidCallback onTap) {
       return Column(
@@ -914,8 +895,6 @@ _trustNameController.clear();
     print("Error: $e");
   }
 }
-FocusNode _receivedByFocus = FocusNode();
-FocusNode _trustNameFocus = FocusNode();
   @override
   Widget build(BuildContext context) {
     return  Scaffold(
@@ -962,8 +941,8 @@ FocusNode _trustNameFocus = FocusNode();
                  SizedBox(height: 15),
              
                  _buildRow([
-                   _buildField("Received By", controller: _receivedByController,focusNode:_receivedByFocus,nextFocusNode: _trustNameFocus ),
-                   _buildField("Trust Name", controller: _trustNameController,focusNode:_trustNameFocus),
+                   _buildField("Received By", controller: _receivedByController),
+                   _buildField("Trust Name", controller: _trustNameController),
                  ]),
                  SizedBox(height: 15),
              

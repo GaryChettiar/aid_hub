@@ -67,14 +67,15 @@ class _LoginPageState extends State<LoginPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                        Row(
-                        children: [
-                            Text(
-                              "Password",
-                              style: GoogleFonts.inter(color: Colors.black),
-                            ),
-                            const Spacer(),
-                        ],
-                      ),
+          children: [
+            Text(
+              "Password",
+              style: GoogleFonts.inter(color: Colors.black),
+            ),
+            const Spacer(),
+            
+          ],
+        ),
         const SizedBox(height: 6),
                       TextField(
                         controller: _passwordController,
@@ -116,65 +117,62 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                      onPressed: () async {
-                        final email = _emailController.text.trim();
-                        final password = _passwordController.text;
+  final email = _emailController.text.trim();
+  final password = _passwordController.text;
 
-                        if (email.isEmpty || password.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Please enter both email and password')),
-                          );
-                          return;
-                        }
+  if (email.isEmpty || password.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please enter both email and password')),
+    );
+    return;
+  }
 
-                        try {
-                          // Attempt Firebase login
-                          await FirebaseAuth.instance.signInWithEmailAndPassword(
-                            email: email,
-                            password: password,
-                          );
+  try {
+    // Attempt Firebase login
+    await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
 
-                          // Navigate to Dashboard if successful
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) =>  Dashboard()),
-                          );
-                        } on FirebaseAuthException catch (e) {
-                          // Show error messages for known errors
-                          String message = 'Login failed. Please try again.';
-                          if (e.code == 'user-not-found') {
-                            message = 'No user found for that email.';
-                          } else if (e.code == 'wrong-password') {
-                            message = 'Incorrect password.';
-                          }
+    // Navigate to Dashboard if successful
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) =>  Dashboard()),
+    );
+  } on FirebaseAuthException catch (e) {
+    // Show error messages for known errors
+    String message = 'Login failed. Please try again.';
+    if (e.code == 'user-not-found') {
+      message = 'No user found for that email.';
+    } else if (e.code == 'wrong-password') {
+      message = 'Incorrect password.';
+    }
 
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(message)),
-                          );
-                        } catch (e) {
-                          // Handle unknown errors
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error: $e')),
-                          );
-                        }
-                      },
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  } catch (e) {
+    // Handle unknown errors
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e')),
+    );
+  }
+},
                       child: const Text("Login"),
                     ),
                   ),
                   const SizedBox(height: 20),
                   Row(
-                    mainAxisSize: MainAxisSize.max,
                     mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.max,
                     children: [
-                          Text("Don't have an account? ",style: GoogleFonts.inter(color: Colors.black),),
-                          InkWell(
-                            onTap: () {
-                              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>SignupPage()));
-                            },
-                            child: Text("Sign Up",style: const TextStyle(
-                           color: Colors.white,
-                           decoration: TextDecoration.underline,
-                         ),),
-                          )
+                      Text("Don't have an account? ",style: GoogleFonts.inter(color: Colors.black),),
+                      InkWell(
+                        onTap: (){
+                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>SignupPage()));
+                        },
+                        child: Text("Sign Up"),
+                      )
                     ],
                   ),
                   // Text.rich(
@@ -182,17 +180,17 @@ class _LoginPageState extends State<LoginPage> {
                   //     text: "Don't have an account? ",
                   //     style: GoogleFonts.inter(color: Colors.black),
                   //     children: [
-                  //      TextSpan(
-                  //        text: "Sign up",
-                  //        style: const TextStyle(
-                  //          color: Colors.white,
-                  //          decoration: TextDecoration.underline,
-                  //        ),
-                  //      )
+                  //       TextSpan(
+                  //         text: "Sign up",
+                  //         style: const TextStyle(
+                  //           color: Colors.white,
+                  //           decoration: TextDecoration.underline,
+                  //         ),
+                  //       ),
                   //     ],
                   //   ),
                   // ),
-                  const SizedBox(height: 24),
+                  // const SizedBox(height: 24),
                   
                 ],
               ),
