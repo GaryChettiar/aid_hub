@@ -10,7 +10,7 @@ import 'package:loading_animation_widget/loading_animation_widget.dart';
 class NewRequest extends StatefulWidget {
   const NewRequest({super.key});
 
-  @override
+  @override 
   State<NewRequest> createState() => _NewRequestState();
 }
 
@@ -64,6 +64,7 @@ final _newSenderEmailController = TextEditingController();
   List _employees = [];
   String? _selectedDescReference;
   String? employee;
+  String? email;
 
   @override
   void initState() {
@@ -489,6 +490,7 @@ Future<void> launchEmail({
         'additionalInformation': _additionalInfoController.text.trim(),
         'handedOverTo':employee=="Other"?_newEmployeeController.text.trim():employee,
         'status': _status,
+        'emailType':email,
         'pendingFromDays': _pendingFromDaysController.text.trim(),
         'remarks': _remarksController.text.trim(),
         'timestamp': FieldValue.serverTimestamp(),
@@ -702,11 +704,14 @@ Future<void> launchEmail({
       _pendingFromDaysController.clear();
       _remarksController.clear();
       _receivedByController.clear();
+      _emailTypeController.clear();
+      
 _amountController.clear();
 _chequeTransactionNoController.clear();
 _trustNameController.clear();
       setState(() {
         _status = null;
+        email=null;
       });
 
       _fetchSenders();
@@ -1251,7 +1256,7 @@ _trustNameController.clear();
           _emailTypeController.text = suggestion;
 
           setState(() {
-            employee = suggestion;
+            email = suggestion;
           });
         },
         builder: (context, controller, focusNode) {

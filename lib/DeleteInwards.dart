@@ -1,3 +1,4 @@
+import 'package:finance_manager/DeletedInwards.dart';
 import 'package:finance_manager/main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -185,6 +186,14 @@ class _InwardDeletionPageState extends State<InwardDeletionPage> {
           (_selectedInwards[batchId]?.length ?? 0) == inwardMap.length
               ? 'Deselect All'
               : 'Select All',
+        ),
+      ),
+      TextButton(
+        onPressed: () {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>DeletedInwardsPage(primaryApp: primaryApp, secondaryApp: secondaryApp)));
+        },
+        child: Text(
+         "Restore"
         ),
       )
     ],

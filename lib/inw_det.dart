@@ -35,6 +35,7 @@ Map<String,dynamic> _inward=Map();
     final TextEditingController _commentsController = TextEditingController();
     final TextEditingController _additionalInfoController = TextEditingController();
     final TextEditingController _handedOverToController = TextEditingController();
+     final TextEditingController _emailTypeController = TextEditingController();
     final TextEditingController _pendingFromDaysController = TextEditingController();
     final TextEditingController _remarksController = TextEditingController();
 
@@ -54,8 +55,12 @@ final _newSenderEmailController = TextEditingController();
   bool _isLoadingDescriptions = true;
   bool _isLoadingDescReferences = true;
   List<Map<String, String>> _descReferenceItems = [];
-  
+  List _templates =[];
+  List _employees = [];
   String? _selectedDescReference;
+  String? employee;
+  String? email;
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +68,8 @@ final _newSenderEmailController = TextEditingController();
     _fetchSenders();
     _fetchDescriptions();
     _fetchDescReferences();
+    _fetchEmailTemplateKeys();
+    _fetchEmployees();
   }
   
   
@@ -103,6 +110,82 @@ Future<void> _fetchSenders() async {
     });
   }
 }
+
+Future<String?> getEmailTemplate(String templateKey) async {
+  try {
+    final doc = await FirebaseFirestore.instance
+        .collection('emailTemplates')
+        .doc('default')
+        .get();
+
+    return doc.data()?[templateKey] ?? '';
+  } catch (e) {
+    print('Error fetching template: $e');
+    return '';
+  }
+}
+Future<void> _fetchEmployees() async {
+  setState(() {
+    // _isLoadingDescReferences = true;
+  });
+
+  try {
+    final docSnap = await FirebaseFirestore.instance
+        .collection('employees')
+        .doc('employees') // same name as collection
+        .get();
+
+    final data = docSnap.data();
+    final List<Map<String, String>> employees = [];
+
+    if (data != null && data.containsKey('emp')) {
+      final List<dynamic> empList = data['emp'];
+      empList.add("Other");
+setState(() {
+  _employees=empList;
+});
+    //   for (var emp in empList) {
+    //     final value = emp.toString();
+    //     employees.add({'label': value, 'value': value});
+    //   }
+    }
+
+    // // Add fallback "Other" option
+    // employees.add({'label': 'Other', 'value': 'Other'});
+
+    // setState(() {
+    //   _employees = employees;
+    //   // _isLoadingDescReferences = false;
+    // });
+  } catch (e) {
+    print('Error fetching employees: $e');
+    setState(() {
+      // _isLoadingDescReferences = false;
+    });
+  }
+}
+Future<void> _fetchEmailTemplateKeys() async {
+  try {
+    final docSnap = await FirebaseFirestore.instance
+        .collection('emailTemplates')
+        .doc('templates') // Same name for doc and collection
+        .get();
+
+    final data = docSnap.data();
+
+    if (data != null && data.containsKey('templates')) {
+      final List<dynamic> templateList = data['templates'];
+      templateList.add("Other");
+
+      setState(() {
+        _templates = templateList;
+      });
+    }
+  } catch (e) {
+    print('Error fetching template keys: $e');
+  }
+}
+
 Future<void> _fetchDescReferences() async {
   setState(() {
     _isLoadingDescReferences = true;
@@ -218,6 +301,7 @@ setState(() {
   _commentsController.text = inwardData['comments'] ?? '';
   _additionalInfoController.text = inwardData['additionalInformation'] ?? '';
   _handedOverToController.text = inwardData['handedOverTo'] ?? '';
+  _emailTypeController.text=inwardData['emailType']??'';
   _pendingFromDaysController.text = inwardData['pendingFromDays'] ?? '';
   _remarksController.text = inwardData['remarks'] ?? '';
 });
@@ -313,6 +397,7 @@ Future<void> launchEmail({
         'additionalInformation': _additionalInfoController.text.trim(),
         'handedOverTo': _handedOverToController.text.trim(),
         'status': _status,
+        'emailType':email,
         'pendingFromDays': _pendingFromDaysController.text.trim(),
         'remarks': _remarksController.text.trim(),
         'timestamp': FieldValue.serverTimestamp(),
@@ -814,7 +899,63 @@ Future<void> launchEmail({
             
                 _buildField("Additional Information", controller: _additionalInfoController),
                 SizedBox(height: 15),
-            
+            Row(
+                   children: [
+                    Expanded(
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        "Email Type",
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
+      SizedBox(height: 8),
+      TypeAheadField<String>(
+        controller: _emailTypeController,
+        suggestionsCallback: (pattern) {
+  return _templates
+      .where((item) => item.toLowerCase().contains(pattern.toLowerCase()))
+      .cast<String>()
+      .toList();
+},
+
+        itemBuilder: (context, suggestion) {
+          return ListTile(
+            title: Text(suggestion),
+          );
+        },
+        onSelected: (suggestion) {
+          _emailTypeController.text = suggestion;
+
+          setState(() {
+            email = suggestion;
+          });
+        },
+        builder: (context, controller, focusNode) {
+          return TextFormField(
+            controller: controller,
+            focusNode: focusNode,
+            decoration: InputDecoration(
+              labelText: 'Email type',
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: Colors.black, width: 1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            ),
+            // validator: (value) =>
+            //     value == null || value.isEmpty ? 'Required' : null,
+          );
+        },
+      ),
+    ],
+  ),
+)
+
+                   ],
+                 ),
                 _buildRow([
                   _buildField("Handed Over To", controller: _handedOverToController),
                   _buildStatusRadio(),

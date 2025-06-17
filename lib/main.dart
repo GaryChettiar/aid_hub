@@ -339,6 +339,7 @@ String? _selectedEmployee; // e.g., "All", "Pending", "Approved", etc.
                 ),
               ),
               SizedBox(height: 10,),
+              (FirebaseAuth.instance.currentUser?.email =="garychettiar@gmail.com"||FirebaseAuth.instance.currentUser?.email =="aob@gmail.com"||FirebaseAuth.instance.currentUser?.email =="john.finadm@gmail.com")?
               InkWell(
                 
                 onTap: (){
@@ -357,7 +358,7 @@ String? _selectedEmployee; // e.g., "All", "Pending", "Approved", etc.
                   height: 50,
                   child: Text("Manage Inwards",style: TextStyle(color: Colors.white),),
                 ),
-              )
+              ):SizedBox.shrink()
             ],
           ),
           
