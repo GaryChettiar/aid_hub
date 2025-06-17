@@ -288,7 +288,7 @@ Future<void> _fetchEmailTemplateKeys() async {
 
     if (data != null && data.containsKey('templates')) {
       final List<dynamic> templateList = data['templates'];
-      templateList.add("Other");
+      
 
       setState(() {
         _templates = templateList;
@@ -512,6 +512,7 @@ Future<void> launchEmail({
     await batchDocRef.set({
       inwardNo: data,
     }, SetOptions(merge: true));
+    
     added = true;
   } else {
     batchIndex++;
@@ -638,7 +639,7 @@ Future<void> launchEmail({
   if (docSnap.exists) {
     List<dynamic> currentList = docSnap.data()?['emp'] ?? [];
 
-    final newEmployee = _newEmployeeController  .text.trim();
+    final newEmployee = _newEmployeeController.text.trim();
 
     if (newEmployee.isNotEmpty && !currentList.contains(newEmployee)) {
       // Append new employee to list and update Firestore
