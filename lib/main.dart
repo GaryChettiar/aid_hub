@@ -783,6 +783,8 @@ appBar: AppBar(
             final data = currentGroup[index];
             return InkWell(
               onTap: () {
+                print(data['inwardNo']);
+                print(_currentBatchIndex);
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(

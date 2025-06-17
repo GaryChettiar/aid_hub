@@ -60,6 +60,8 @@ final _newSenderEmailController = TextEditingController();
   String? _selectedDescReference;
   String? employee;
   String? email;
+  
+  bool isLoading=true;
 
   @override
   void initState() {
@@ -126,7 +128,7 @@ Future<String?> getEmailTemplate(String templateKey) async {
 }
 Future<void> _fetchEmployees() async {
   setState(() {
-    // _isLoadingDescReferences = true;
+    _isLoadingDescReferences = true;
   });
 
   try {
@@ -153,10 +155,10 @@ setState(() {
     // // Add fallback "Other" option
     // employees.add({'label': 'Other', 'value': 'Other'});
 
-    // setState(() {
-    //   _employees = employees;
-    //   // _isLoadingDescReferences = false;
-    // });
+    setState(() {
+      // _employees = employees;
+      _isLoadingDescReferences = false;
+    });
   } catch (e) {
     print('Error fetching employees: $e');
     setState(() {
@@ -267,6 +269,9 @@ Future<void> _fetchDescReferences() async {
 
 Future<Map<String, dynamic>?> _fetchInward(String batchId, String inwardNo) async {
   try {
+setState(() {
+  isLoading = true;
+});
     final doc = await FirebaseFirestore.instance
         .collection('groupedInwards')
         .doc(batchId)
@@ -304,9 +309,11 @@ setState(() {
   _emailTypeController.text=inwardData['emailType']??'';
   _pendingFromDaysController.text = inwardData['pendingFromDays'] ?? '';
   _remarksController.text = inwardData['remarks'] ?? '';
+  isLoading=false;
 });
     return inwardData;
   } catch (e) {
+    isLoading=false;
     print("Error fetching inward: $e");
     return null;
   }
@@ -642,7 +649,7 @@ Future<void> launchEmail({
         },icon: Icon(Icons.arrow_back_rounded),)
       ),
       body: 
-      (_isLoadingSenders || _isLoadingDescriptions||_isLoadingDescriptions)?
+      (_isLoadingSenders || _isLoadingDescriptions||_isLoadingDescriptions||isLoading)?
       Center(
         child: CircularProgressIndicator()
       ):Padding(
