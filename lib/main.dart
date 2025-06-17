@@ -471,12 +471,15 @@ appBar: AppBar(
                           setState(() {
                             _inwardNoController.clear();
                           _nameController.clear();
-                          _currentBatchIndex=0;
+                          _currentBatchIndex=1;
                           _currentGroupIndex=0;
                           _selectedStatus=null;
                           _selectedEmployee=null;
                           isSearchButtonPressed=false;
                           _lastFilteredDocs=[];
+                          _fetchEmployees();
+                          
+
                           });
                           
                         }, child: Text("Refresh"))
