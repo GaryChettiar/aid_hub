@@ -10,14 +10,16 @@ class InwardDeletionPage extends StatefulWidget {
 }
 
 class _InwardDeletionPageState extends State<InwardDeletionPage> {
-  Map<String, Map<String, dynamic>> _inwards = {}; // batchDocId -> {inwardId: inwardData}
-  Map<String, Set<String>> _selectedInwards = {}; // batchDocId -> Set<inwardId>
+  Map<String, Map<String, dynamic>> _inwards = {};
+  Map<String, Set<String>> _selectedInwards = {};
   bool _isLoading = true;
 
-  TextEditingController _inwardNoController = TextEditingController();
-  TextEditingController _senderNameController = TextEditingController();
-  String _inwardNoQuery = '';
-  String _senderQuery = '';
+  final _inwardNoController = TextEditingController();
+  final _senderController = TextEditingController();
+  final _descController = TextEditingController();
+  final _dateController = TextEditingController();
+
+  String _inwardNoQuery = '', _senderQuery = '', _descQuery = '', _dateQuery = '';
 
   @override
   void initState() {
@@ -30,12 +32,10 @@ class _InwardDeletionPageState extends State<InwardDeletionPage> {
     final snapshot = await FirebaseFirestore.instance.collection('groupedInwards').get();
 
     Map<String, Map<String, dynamic>> allInwards = {};
-
     for (var doc in snapshot.docs) {
       if (doc.id == 'meta') continue;
       final data = doc.data();
 
-      // Convert and sort by last 4 digits of inwardNo
       final sortedEntries = data.entries.toList()
         ..sort((a, b) {
           final aNo = int.tryParse(RegExp(r'\d{4}$').firstMatch(a.value['inwardNo'] ?? '')?.group(0) ?? '0') ?? 0;
@@ -43,9 +43,7 @@ class _InwardDeletionPageState extends State<InwardDeletionPage> {
           return aNo.compareTo(bNo);
         });
 
-      allInwards[doc.id] = {
-        for (var entry in sortedEntries) entry.key: entry.value,
-      };
+      allInwards[doc.id] = { for (var entry in sortedEntries) entry.key: entry.value };
     }
 
     setState(() {
@@ -76,7 +74,6 @@ class _InwardDeletionPageState extends State<InwardDeletionPage> {
     final metaSnap = await metaRef.get();
 
     Map<String, dynamic> batchCount = {};
-
     if (metaSnap.exists) {
       batchCount = Map<String, dynamic>.from(metaSnap.data()?['batchCount'] ?? {});
     } else {
@@ -125,19 +122,72 @@ class _InwardDeletionPageState extends State<InwardDeletionPage> {
     }
 
     await metaRef.update({'batchCount': batchCount});
-    await _fetchInwards(); // Refresh UI
+    await _fetchInwards();
+  }
+
+  Widget _buildSearchField(TextEditingController controller, String label, void Function(String) onChanged) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(),
+          suffixIcon: Icon(Icons.search),
+        ),
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget _buildDateSearchField() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: TextField(
+        controller: _dateController,
+        readOnly: true,
+        decoration: InputDecoration(
+          labelText: 'Search by Date (yyyy-MM-dd)',
+          border: OutlineInputBorder(),
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_dateController.text.isNotEmpty)
+                IconButton(
+                  icon: Icon(Icons.clear),
+                  onPressed: () {
+                    _dateController.clear();
+                    setState(() => _dateQuery = '');
+                  },
+                ),
+              Icon(Icons.calendar_today),
+            ],
+          ),
+        ),
+        onTap: () async {
+          final pickedDate = await showDatePicker(
+            context: context,
+            initialDate: DateTime.now(),
+            firstDate: DateTime(2000),
+            lastDate: DateTime(2100),
+          );
+          if (pickedDate != null) {
+            String formatted = "${pickedDate.year.toString().padLeft(4, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
+            _dateController.text = formatted;
+            setState(() => _dateQuery = formatted.toLowerCase());
+          }
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => Dashboard()));
-          },
-          icon: Icon(Icons.arrow_back_rounded),
-        ),
+        leading: IconButton(onPressed: () {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => Dashboard()));
+        }, icon: Icon(Icons.arrow_back_rounded)),
         title: Text('Delete Inwards'),
         actions: [
           IconButton(
@@ -163,116 +213,88 @@ class _InwardDeletionPageState extends State<InwardDeletionPage> {
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
-          : _inwards.isEmpty
-              ? Center(child: Text('No inwards found.'))
-              : Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: TextField(
-                        controller: _inwardNoController,
-                        decoration: InputDecoration(
-                          labelText: 'Search by Inward No',
-                          border: OutlineInputBorder(),
-                          suffixIcon: Icon(Icons.search),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            _inwardNoQuery = value.toLowerCase();
-                          });
-                        },
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: TextField(
-                        controller: _senderNameController,
-                        decoration: InputDecoration(
-                          labelText: 'Search by Sender Name',
-                          border: OutlineInputBorder(),
-                          suffixIcon: Icon(Icons.search),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            _senderQuery = value.toLowerCase();
-                          });
-                        },
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView(
-                        children: _inwards.entries.map((entry) {
-                          final batchId = entry.key;
-                          final inwardMap = entry.value;
+          : Column(
+              children: [
+                _buildSearchField(_inwardNoController, 'Search by Inward No', (v) => setState(() => _inwardNoQuery = v.toLowerCase())),
+                _buildSearchField(_senderController, 'Search by Sender Name', (v) => setState(() => _senderQuery = v.toLowerCase())),
+                _buildSearchField(_descController, 'Search by Description', (v) => setState(() => _descQuery = v.toLowerCase())),
+                _buildDateSearchField(),
+                Expanded(
+                  child: _inwards.isEmpty
+                      ? Center(child: Text('No inwards found.'))
+                      : ListView(
+                          children: _inwards.entries.map((entry) {
+                            final batchId = entry.key;
+                            final inwardMap = entry.value;
 
-                          final filteredMap = inwardMap.entries.where((inwardEntry) {
-                            final inwardData = inwardEntry.value;
-                            final inwardNo = (inwardData['inwardNo'] ?? '').toString().toLowerCase();
-                            final sender = (inwardData['senderName'] ?? '').toString().toLowerCase();
-                            return inwardNo.contains(_inwardNoQuery) && sender.contains(_senderQuery);
-                          }).toList();
+                            final filteredEntries = inwardMap.entries.where((e) {
+                              final d = e.value;
+                              final no = (d['inwardNo'] ?? '').toString().toLowerCase();
+                              final sender = (d['senderName'] ?? '').toString().toLowerCase();
+                              final desc = (d['description'] ?? '').toString().toLowerCase();
+                              final date = (d['date'] ?? '').toString().toLowerCase();
+                              return no.contains(_inwardNoQuery) &&
+                                  sender.contains(_senderQuery) &&
+                                  desc.contains(_descQuery) &&
+                                  date.contains(_dateQuery);
+                            }).toList();
 
-                          if (filteredMap.isEmpty) return SizedBox.shrink();
+                            if (filteredEntries.isEmpty) return SizedBox.shrink();
 
-                          return ExpansionTile(
-                            title: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('$batchId (${filteredMap.length})'),
-                                TextButton(
-                                  onPressed: () {
-                                    final selectedSet = _selectedInwards[batchId] ?? {};
-                                    final allKeys = filteredMap.map((e) => e.key).toSet();
+                            return ExpansionTile(
+                              title: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('$batchId (${filteredEntries.length})'),
+                                  TextButton(
+                                    onPressed: () {
+                                      final selectedSet = _selectedInwards[batchId] ?? {};
+                                      final allKeys = filteredEntries.map((e) => e.key).toSet();
 
-                                    setState(() {
-                                      if (selectedSet.containsAll(allKeys)) {
-                                        _selectedInwards[batchId] = {};
-                                      } else {
-                                        _selectedInwards[batchId] = {...?selectedSet, ...allKeys};
-                                      }
-                                    });
-                                  },
-                                  child: Text(
-                                    (_selectedInwards[batchId]?.containsAll(filteredMap.map((e) => e.key)) ?? false)
-                                        ? 'Deselect All'
-                                        : 'Select All',
+                                      setState(() {
+                                        if (selectedSet.length == allKeys.length) {
+                                          _selectedInwards[batchId] = {};
+                                        } else {
+                                          _selectedInwards[batchId] = Set.from(allKeys);
+                                        }
+                                      });
+                                    },
+                                    child: Text(
+                                      (_selectedInwards[batchId]?.length ?? 0) == filteredEntries.length
+                                          ? 'Deselect All'
+                                          : 'Select All',
+                                    ),
                                   ),
-                                ),
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => DeletedInwardsPage(
-                                          primaryApp: primaryApp,
-                                          secondaryApp: secondaryApp,
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => DeletedInwardsPage(primaryApp: primaryApp, secondaryApp: secondaryApp),
                                         ),
-                                      ),
-                                    );
-                                  },
-                                  child: Text("Restore"),
-                                ),
-                              ],
-                            ),
-                            children: filteredMap.map((inwardEntry) {
-                              final inwardId = inwardEntry.key;
-                              final inwardData = inwardEntry.value;
+                                      );
+                                    },
+                                    child: Text("Restore"),
+                                  )
+                                ],
+                              ),
+                              children: filteredEntries.map((inwardEntry) {
+                                final inwardId = inwardEntry.key;
+                                final inwardData = inwardEntry.value;
 
-                              return CheckboxListTile(
-                                value: _selectedInwards[batchId]?.contains(inwardId) ?? false,
-                                onChanged: (selected) => _toggleSelect(batchId, inwardId, selected),
-                                title: Text('${inwardData['inwardNo'] ?? inwardId}'),
-                                subtitle: Text(
-                                  'Received by: ${inwardData['receivedBy'] ?? ''}\nSender: ${inwardData['senderName'] ?? ''}',
-                                ),
-                              );
-                            }).toList(),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ],
+                                return CheckboxListTile(
+                                  value: _selectedInwards[batchId]?.contains(inwardId) ?? false,
+                                  onChanged: (selected) => _toggleSelect(batchId, inwardId, selected),
+                                  title: Text('${inwardData['inwardNo'] ?? inwardId}'),
+                                  subtitle: Text('Sender: ${inwardData['senderName'] ?? ''}\nDesc: ${inwardData['description'] ?? ''}\nDate: ${inwardData['date'] ?? ''}'),
+                                );
+                              }).toList(),
+                            );
+                          }).toList(),
+                        ),
                 ),
+              ],
+            ),
     );
   }
 }
