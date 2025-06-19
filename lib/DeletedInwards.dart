@@ -29,6 +29,11 @@ class _DeletedInwardsPageState extends State<DeletedInwardsPage> {
   bool isLoading = true;
   bool selectAll = false;
 
+  TextEditingController _inwardIdController = TextEditingController();
+  TextEditingController _senderNameController = TextEditingController();
+  String _inwardIdQuery = '';
+  String _senderNameQuery = '';
+
   @override
   void initState() {
     super.initState();
@@ -105,15 +110,12 @@ class _DeletedInwardsPageState extends State<DeletedInwardsPage> {
       final batchId = batchEntry.key;
       final inwards = batchEntry.value;
 
-      // 1. Restore to primary
       final batchRef = primaryFirestore.collection('groupedInwards').doc(batchId);
       await batchRef.set(inwards, SetOptions(merge: true));
 
-      // 2. Update count
       final current = batchCount[batchId] ?? 0;
       batchCount[batchId] = current + inwards.length;
 
-      // 3. Remove from deleted
       final deletedRef = secondaryFirestore.collection('deletedInwards').doc(batchId);
       Map<String, dynamic> deleteMap = {};
       for (final id in inwards.keys) {
@@ -123,18 +125,23 @@ class _DeletedInwardsPageState extends State<DeletedInwardsPage> {
     }
 
     await metaRef.update({'batchCount': batchCount});
-
-    await _fetchDeletedInwards(); // Refresh list
+    await _fetchDeletedInwards();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(onPressed: (){Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>InwardDeletionPage()));}, icon: Icon(Icons.arrow_back)),
+        leading: IconButton(
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => InwardDeletionPage()),
+              );
+            },
+            icon: Icon(Icons.arrow_back)),
         title: const Text("Deleted Inwards"),
         actions: [
-
           IconButton(
             icon: Icon(selectAll ? Icons.check_box : Icons.check_box_outline_blank),
             onPressed: _toggleSelectAll,
@@ -150,26 +157,73 @@ class _DeletedInwardsPageState extends State<DeletedInwardsPage> {
           ? const Center(child: CircularProgressIndicator())
           : allDeletedInwards.isEmpty
               ? const Center(child: Text("No deleted inwards found."))
-              : ListView(
-                  children: allDeletedInwards.entries.expand((entry) {
-                    final batchId = entry.key;
-                    final entries = entry.value.entries.toList();
-                    return entries.map((e) {
-                      final inwardId = e.key;
-                      final data = Map<String, dynamic>.from(e.value);
-                      final isSelected = selectedInwards[batchId]?.containsKey(inwardId) ?? false;
-
-                      return ListTile(
-                        title: Text("ID: $inwardId"),
-                        subtitle: Text("Batch: $batchId\nAmount: ${data['amount'] ?? '-'}"),
-                        trailing: Checkbox(
-                          value: isSelected,
-                          onChanged: (_) => _toggleSelection(batchId, inwardId, data),
+              : Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      child: TextField(
+                        controller: _inwardIdController,
+                        decoration: InputDecoration(
+                          labelText: "Search by Inward ID",
+                          border: OutlineInputBorder(),
+                          suffixIcon: Icon(Icons.search),
                         ),
-                        onTap: () => _toggleSelection(batchId, inwardId, data),
-                      );
-                    });
-                  }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _inwardIdQuery = value.toLowerCase();
+                          });
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      child: TextField(
+                        controller: _senderNameController,
+                        decoration: InputDecoration(
+                          labelText: "Search by Sender Name",
+                          border: OutlineInputBorder(),
+                          suffixIcon: Icon(Icons.search),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _senderNameQuery = value.toLowerCase();
+                          });
+                        },
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        children: allDeletedInwards.entries.expand((entry) {
+                          final batchId = entry.key;
+                          final entries = entry.value.entries.where((e) {
+                            final inwardId = e.key.toLowerCase();
+                            final sender = (e.value['senderName'] ?? '').toString().toLowerCase();
+                            return inwardId.contains(_inwardIdQuery) &&
+                                sender.contains(_senderNameQuery);
+                          }).toList();
+
+                          return entries.map((e) {
+                            final inwardId = e.key;
+                            final data = Map<String, dynamic>.from(e.value);
+                            final isSelected =
+                                selectedInwards[batchId]?.containsKey(inwardId) ?? false;
+
+                            return ListTile(
+                              title: Text("ID: $inwardId"),
+                              subtitle: Text(
+                                  "Batch: $batchId\nAmount: ${data['amount'] ?? '-'}\nSender: ${data['senderName'] ?? '-'}"),
+                              trailing: Checkbox(
+                                value: isSelected,
+                                onChanged: (_) =>
+                                    _toggleSelection(batchId, inwardId, data),
+                              ),
+                              onTap: () => _toggleSelection(batchId, inwardId, data),
+                            );
+                          });
+                        }).toList(),
+                      ),
+                    ),
+                  ],
                 ),
     );
   }
