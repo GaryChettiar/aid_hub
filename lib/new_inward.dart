@@ -685,6 +685,8 @@ Future<void> launchEmail({
       _formKey.currentState!.reset();
       _generateInwardNo();
       _dateController.clear();
+      _senderCodeController.clear();
+      _descriptionCodeController.clear();
       _timeController.clear();
       _newSenderCodeController.clear();
       _newSenderDetailsController.clear();
@@ -953,117 +955,235 @@ _trustNameController.clear();
                  
              
                  // Dropdowns for Sender Code and Description Code
-               Row(
-             children: [
-       /// Sender Search Field
-       Expanded(
-         child: Column(
-           crossAxisAlignment: CrossAxisAlignment.start,
-           children: [
-             Text("Sender Name",
-                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-             SizedBox(height: 8),
-             TypeAheadField<Map<String, String>>(
-              controller: _senderNameController,
-               suggestionsCallback: (pattern) {
-                 return _senderItems
-                     .where((item) => item['name']!
-                         .toLowerCase()
-                         .contains(pattern.toLowerCase()))
-                     .toList();
-               },
-               itemBuilder: (context, suggestion) {
-                 return ListTile(
-                   title: Text(suggestion['name'] ?? ''),
-                   subtitle: Text('Code: ${suggestion['code'] ?? ''}'),
-                 );
-               },
-               onSelected: (suggestion) async {
-                 _senderNameController.text = suggestion['name']!;
-                 setState(() {
-                   _selectedSenderCode = suggestion['code'];
-                   
-                 });
-                 String email = await getSenderEmail(suggestion['code']!);
-                 print("Sender Email: $email");
-               },
-               builder: (context, controller, focusNode) {
-                 return TextFormField(
-                   controller: controller,
-                   focusNode: focusNode,
-                   decoration: InputDecoration(
-                     labelText: 'Sender Name',
-                     filled: true,
-                     fillColor: Colors.white,
-                                   border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
-       
-                     contentPadding:
-                         EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                   ),
-                  //  validator: (value) =>
-                  //      value == null || value.isEmpty ? 'Required' : null,
-                 );
-               },
-             ),
-           ],
-         ),
-       ),
-       
-       SizedBox(width: 20),
-       
-       /// Description Search Field
-       Expanded(
-         child: Column(
-           crossAxisAlignment: CrossAxisAlignment.start,
-           children: [
-             Text("Inward Reason",
-                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-             SizedBox(height: 8),
-             TypeAheadField<Map<String, String>>(
-              controller: _descriptionController,
-               suggestionsCallback: (pattern) {
-                 return _descriptionItems
-                     .where((item) => item['desc']!
-                         .toLowerCase()
-                         .contains(pattern.toLowerCase()))
-                     .toList();
-               },
-               itemBuilder: (context, suggestion) {
-                 return ListTile(
-                   title: Text(suggestion['desc'] ?? ''),
-                   subtitle: Text('Code: ${suggestion['name'] ?? ''}'),
-                 );
-               },
-               onSelected: (suggestion) {
-                 _descriptionController.text = suggestion['desc']!;
-                 setState(() {
-                   _selectedDescriptionCode = suggestion['name'];
-                 });
-               },
-               builder: (context, controller, focusNode) {
-                
-                 return TextFormField(
-                   controller: controller,
-                   focusNode: focusNode,
-                   decoration: InputDecoration(
-                     labelText: 'Inward Reason',
-                     filled: true,
-                     fillColor: Colors.white,
-                                   border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black,width: 1,style: BorderStyle.solid), borderRadius: BorderRadius.circular(8)),
-       
-                     contentPadding:
-                         EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                   ),
-                  //  validator: (value) =>
-                  //      value == null || value.isEmpty ? 'Required' : null,
-                 );
-               },
-             ),
-           ],
-         ),
-       ),
-             ],
-           ),
+             Column(
+  children: [
+    /// Row 1: Sender Code & Sender Name
+    Row(
+      children: [
+        /// Sender Code TypeAhead
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Sender Code",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              TypeAheadField<Map<String, String>>(
+                controller: _senderCodeController,
+                suggestionsCallback: (pattern) {
+                  return _senderItems
+                      .where((item) => item['code']!
+                          .toLowerCase()
+                          .contains(pattern.toLowerCase()))
+                      .toList();
+                },
+                itemBuilder: (context, suggestion) {
+                  return ListTile(
+                    title: Text(suggestion['code'] ?? ''),
+                    subtitle: Text('Name: ${suggestion['name'] ?? ''}'),
+                  );
+                },
+                onSelected: (suggestion) async {
+                  _senderCodeController.text = suggestion['code']!;
+                  setState(() {
+                    _senderNameController.text = suggestion['name']!;
+                    _selectedSenderCode = suggestion['code'];
+                  });
+                  String email = await getSenderEmail(suggestion['code']!);
+                  print("Sender Email: $email");
+                },
+                builder: (context, controller, focusNode) {
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: InputDecoration(
+                      labelText: 'Sender Code',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black, width: 1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        SizedBox(width: 20),
+
+        /// Sender Name TypeAhead
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Sender Name",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              TypeAheadField<Map<String, String>>(
+                controller: _senderNameController,
+                suggestionsCallback: (pattern) {
+                  return _senderItems
+                      .where((item) => item['name']!
+                          .toLowerCase()
+                          .contains(pattern.toLowerCase()))
+                      .toList();
+                },
+                itemBuilder: (context, suggestion) {
+                  return ListTile(
+                    title: Text(suggestion['name'] ?? ''),
+                    subtitle: Text('Code: ${suggestion['code'] ?? ''}'),
+                  );
+                },
+                onSelected: (suggestion) async {
+                  _senderNameController.text = suggestion['name']!;
+                  setState(() {
+                    _senderCodeController.text = suggestion['code']!;
+                    _selectedSenderCode = suggestion['code'];
+                  });
+                  String email = await getSenderEmail(suggestion['code']!);
+                  print("Sender Email: $email");
+                },
+                builder: (context, controller, focusNode) {
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: InputDecoration(
+                      labelText: 'Sender Name',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black, width: 1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+
+    SizedBox(height: 20),
+
+    /// Row 2: Description Code & Inward Reason
+    Row(
+      children: [
+        /// Description Code TypeAhead
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Description Code",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              TypeAheadField<Map<String, String>>(
+                controller: _descriptionCodeController,
+                suggestionsCallback: (pattern) {
+                  return _descriptionItems
+                      .where((item) => item['name']!
+                          .toLowerCase()
+                          .contains(pattern.toLowerCase()))
+                      .toList();
+                },
+                itemBuilder: (context, suggestion) {
+                  return ListTile(
+                    title: Text(suggestion['name'] ?? ''),
+                    subtitle: Text('Reason: ${suggestion['desc'] ?? ''}'),
+                  );
+                },
+                onSelected: (suggestion) {
+                  _descriptionCodeController.text = suggestion['name']!;
+                  setState(() {
+                    _descriptionController.text = suggestion['desc']!;
+                    _selectedDescriptionCode = suggestion['name'];
+                  });
+                },
+                builder: (context, controller, focusNode) {
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: InputDecoration(
+                      labelText: 'Description Code',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black, width: 1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        SizedBox(width: 20),
+
+        /// Inward Reason TypeAhead
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Inward Reason",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              TypeAheadField<Map<String, String>>(
+                controller: _descriptionController,
+                suggestionsCallback: (pattern) {
+                  return _descriptionItems
+                      .where((item) => item['desc']!
+                          .toLowerCase()
+                          .contains(pattern.toLowerCase()))
+                      .toList();
+                },
+                itemBuilder: (context, suggestion) {
+                  return ListTile(
+                    title: Text(suggestion['desc'] ?? ''),
+                    subtitle: Text('Code: ${suggestion['name'] ?? ''}'),
+                  );
+                },
+                onSelected: (suggestion) {
+                  _descriptionController.text = suggestion['desc']!;
+                  setState(() {
+                    _descriptionCodeController.text = suggestion['name']!;
+                    _selectedDescriptionCode = suggestion['name'];
+                  });
+                },
+                builder: (context, controller, focusNode) {
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: InputDecoration(
+                      labelText: 'Inward Reason',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black, width: 1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  ],
+),
        
                  _selectedSenderCode == "Other"?
                  _buildRow([
