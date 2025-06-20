@@ -120,9 +120,9 @@ void _downloadFilteredDocsAsExcelWeb() {
   final sheet = excel['Sheet1'];
 
   // 1. Create header row with TextCellValue
-  final headers = ["Inward No", "Date","Sender","Status","Handed Over To","Remarks"];
+  final headers = ["Inward No", "Date","Sender","Inward Reason","Status","Handed Over To","Remarks"];
   sheet.appendRow(headers.map((h) => xls.TextCellValue(h)).toList());
-final keys = ["inwardNo","date","senderName","status","handedOverTo","remarks"];
+final keys = ["inwardNo","date","senderName","description","status","handedOverTo","remarks"];
   // 2. Create data rows similarly
   for (var doc in _lastFilteredDocs) {
     final rowValues = keys.map((key) => doc[key]?.toString() ?? '').toList();
@@ -759,6 +759,10 @@ appBar: AppBar(
                  Expanded(
                 flex: 1,
                 child: Text("Sender",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,)),
+               Expanded(
+                flex: 1,
+                child: Text("Inward Reason",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,)),
+             
               Expanded(
                 flex: 1,
                 child: Text("Status",style: TextStyle(fontWeight: FontWeight.bold),textAlign: TextAlign.center,)),
@@ -816,6 +820,7 @@ appBar: AppBar(
       : "",
 ),
                     _buildCell(data['senderName'] ?? ""),
+                     _buildCell(data['description'] ?? ""),
                     _buildCell(
                       (data['status'] ?? "") +
                           ((data['status'] == "Pending")
