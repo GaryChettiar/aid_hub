@@ -460,7 +460,7 @@ Future<void> launchEmail({
       // Optionally send email or SMS here
       // launchEmail(...);
 
-      Navigator.pop(context);
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>Dashboard()));
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to submit request: $e')),
