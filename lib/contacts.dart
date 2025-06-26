@@ -24,31 +24,38 @@ class _ContactsState extends State<Contacts> {
       List<Map<String, dynamic>> matchedSenders = [];
 
       for (var doc in docs) {
-        if (doc.id == 'sendersMeta') continue; // Skip metadata document
+  if (doc.id == 'senderMeta') continue; // Skip metadata document
 
-        final data = doc.data() as Map<String, dynamic>;
+  final data = doc.data() as Map<String, dynamic>;
 
-        int totalFields = data.length;
-        int count = totalFields ~/ 4;
+  // Collect all unique indices (e.g., from keys like 'sname1', 'sname2', ...)
+  final senderIndices = <int>{};
+  for (var key in data.keys) {
+    final match = RegExp(r'sname(\d+)').firstMatch(key);
+    if (match != null) {
+      senderIndices.add(int.parse(match.group(1)!));
+    }
+  }
 
-        for (int i = 1; i <= count; i++) {
-          String? name = data['sname$i']?.toString();
-          String? code = data['scode$i']?.toString();
-          String? email = data['semail$i']?.toString();
-          String? contact = data['scontact$i']?.toString();
+  // For each valid sender index, read the fields
+  for (var i in senderIndices) {
+    String? name = data['sname$i']?.toString();
+    String? code = data['scode$i']?.toString();
+    String? email = data['semail$i']?.toString();
+    String? contact = data['scontact$i']?.toString();
 
-          if (name != null && _matchesSenderSearch(name)) {
-            matchedSenders.add({
-              'code': code,
-              'name': name,
-              'email': email,
-              'contact': contact,
-              'batchId':doc.id,
-              'index': i.toString(),
-            });
-          }
-        }
-      }
+    if (name != null && _matchesSenderSearch(name)) {
+      matchedSenders.add({
+        'code': code,
+        'name': name,
+        'email': email,
+        'contact': contact,
+        'batchId': doc.id,
+        'index': i.toString(),
+      });
+    }
+  }
+}
 
       setState(() {
         _lastFilteredDocs = matchedSenders;
