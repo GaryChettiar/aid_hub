@@ -174,6 +174,7 @@ void _performSearch() async {
           _matchesInwardSearch(inwardNo) &&
           _matchesSenderSearch(sender)) {
         inwardData['inwardNo'] ??= inwardNo;
+        inwardData['batchId'] = batchDoc.id;
         matchedInwards.add(inwardData);
       }
     }
@@ -794,7 +795,7 @@ appBar: AppBar(
                   MaterialPageRoute(
                     builder: (context) => UpdateDetails(
                       inwardNo: data['inwardNo'],
-                      batchId: "batch-$_currentBatchIndex",
+                      batchId: data['batchId'],
                     ),
                   ),
                 );
