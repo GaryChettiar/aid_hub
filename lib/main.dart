@@ -167,12 +167,13 @@ void _performSearch() async {
 
       final status = (inwardData['status'] ?? '').toString();
       final sender = inwardData['senderName']?.toString();
+      final reference = inwardData['billReference']?.toString();
       final handedOver = inwardData['handedOverTo']?.toString();
 
       if (_matchesEmployee(handedOver) &&
           _matchesStatus(status) &&
           _matchesInwardSearch(inwardNo) &&
-          _matchesSenderSearch(sender)) {
+          _matchesSenderSearch(sender,reference)) {
         inwardData['inwardNo'] ??= inwardNo;
         inwardData['batchId'] = batchDoc.id;
         matchedInwards.add(inwardData);
@@ -242,9 +243,9 @@ setState(() {
     return inwardNo?.toLowerCase().contains(_inwardNoController.text.toLowerCase()) ?? false;
   }
 
-  bool _matchesSenderSearch(String? senderName) {
+  bool _matchesSenderSearch(String? senderName,String? reference) {
     if (_nameController.text.isEmpty) return true;
-    return senderName?.toLowerCase().contains(_nameController.text.toLowerCase()) ?? false;
+    return (senderName?.toLowerCase().contains(_nameController.text.toLowerCase()))! ||(reference?.toLowerCase().contains(_nameController.text.toLowerCase()))! ?? false;
   }
   bool _matchesStatus(String? status) {
   if (_selectedStatus == null || _selectedStatus == 'All') return true;
@@ -545,7 +546,7 @@ appBar: AppBar(
                                 onPressed: _performSearch,
                                 icon: Icon(Icons.search),
                               ),
-                              hintText: "Search by Name",
+                              hintText: "Search by Sender Name or Bill Reference",
                             ),
                             onSubmitted: (value) => _performSearch(),
                           ),
