@@ -411,20 +411,23 @@ Future<void> launchEmail({
       };
 
       // Add to first batch that has < 300 entries
-      final coll = FirebaseFirestore.instance.collection('groupedInwards');
+     final coll = FirebaseFirestore.instance.collection('groupedInwards');
+final cleanInwardNo = inwardNo.trim().toUpperCase();
 int batchIndex = 1;
 bool updated = false;
 
 while (!updated) {
   final batchDocRef = coll.doc('batch-$batchIndex');
   final docSnapshot = await batchDocRef.get();
-
   final docData = docSnapshot.data();
-  if (docData?.containsKey(inwardNo) ?? false) {
-    await batchDocRef.set({
-      inwardNo: data,
-    }, SetOptions(merge: true));
 
+  // Normalize and check
+  final isPresent = docData?.keys.any((key) => key.trim().toUpperCase() == cleanInwardNo) ?? false;
+
+  if (isPresent) {
+    await batchDocRef.set({
+      cleanInwardNo: data,
+    }, SetOptions(merge: true));
     updated = true;
   } else {
     batchIndex++;
