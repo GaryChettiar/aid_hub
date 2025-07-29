@@ -412,22 +412,25 @@ Future<void> launchEmail({
 
       // Add to first batch that has < 300 entries
       final coll = FirebaseFirestore.instance.collection('groupedInwards');
-      bool added = false;
-      int batchIndex = 1;
+int batchIndex = 1;
+bool updated = false;
 
-      while (!added) {
-        final batchDocRef = coll.doc('batch-$batchIndex');
-        final docSnapshot = await batchDocRef.get();
+while (!updated) {
+  final batchDocRef = coll.doc('batch-$batchIndex');
+  final docSnapshot = await batchDocRef.get();
 
-        if (!docSnapshot.exists || (docSnapshot.data()?.length ?? 0) < 300) {
-          await batchDocRef.set({
-            inwardNo: data,
-          }, SetOptions(merge: true));
-          added = true;
-        } else {
-          batchIndex++;
-        }
-      }
+  final docData = docSnapshot.data();
+  if (docData?.containsKey(inwardNo) ?? false) {
+    await batchDocRef.set({
+      inwardNo: data,
+    }, SetOptions(merge: true));
+
+    updated = true;
+  } else {
+    batchIndex++;
+  }
+}
+
 
       // Add new sender if needed
       if (_selectedSenderCode == "Other") {
