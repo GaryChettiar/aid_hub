@@ -374,11 +374,12 @@ Future<void> launchEmail({
       final data = {
         'inwardNo': inwardNo,
         'receivedBy': _receivedByController.text.trim(),
-        // 'date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
-        // 'time': DateFormat('HH:mm').format(
-        //   DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day,
-        //       TimeOfDay.now().hour, TimeOfDay.now().minute),
-        // ),
+        'date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        'time': DateFormat('HH:mm').format(
+          DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day,
+              TimeOfDay.now().hour, TimeOfDay.now().minute),
+        ),
+        
         'trustName': _trustNameController.text.trim(),
         'senderCode': _selectedSenderCode == "Other"
             ? _newSenderCodeController.text.trim()
@@ -411,28 +412,28 @@ Future<void> launchEmail({
       };
 
       // Add to first batch that has < 300 entries
-     final coll = FirebaseFirestore.instance.collection('groupedInwards');
-final cleanInwardNo = inwardNo.trim().toUpperCase();
-int batchIndex = 1;
-bool updated = false;
+      final coll = FirebaseFirestore.instance.collection('groupedInwards');
+      final cleanInwardNo = widget.inwardNo.trim().toUpperCase();
+      int batchIndex = 1;
+      bool updated = false;
 
-while (!updated) {
-  final batchDocRef = coll.doc('batch-$batchIndex');
-  final docSnapshot = await batchDocRef.get();
-  final docData = docSnapshot.data();
+      while (!updated) {
+        final batchDocRef = coll.doc('batch-$batchIndex');
+        final docSnapshot = await batchDocRef.get();
+        final docData = docSnapshot.data();
 
-  // Normalize and check
-  final isPresent = docData?.keys.any((key) => key.trim().toUpperCase() == cleanInwardNo) ?? false;
+        // Normalize and check
+        final isPresent = docData?.keys.any((key) => key.trim().toUpperCase() == cleanInwardNo) ?? false;
 
-  if (isPresent) {
-    await batchDocRef.set({
-      cleanInwardNo: data,
-    }, SetOptions(merge: true));
-    updated = true;
-  } else {
-    batchIndex++;
-  }
-}
+        if (isPresent) {
+          await batchDocRef.set({
+            cleanInwardNo: data,
+          }, SetOptions(merge: true));
+          updated = true;
+        } else {
+          batchIndex++;
+        }
+      }
 
 
       // Add new sender if needed
