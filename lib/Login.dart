@@ -1,5 +1,6 @@
 import 'package:finance_manager/Signup.dart';
 import 'package:finance_manager/main.dart';
+import 'package:finance_manager/reset_password_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -162,6 +163,13 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
+                  TextButton(
+                    onPressed: (){
+                      Navigator.push(context, MaterialPageRoute(builder: (context)=>ResetPasswordPage()));
+                    },
+                    child: Text("Forgot Password?",style: GoogleFonts.inter(color: Colors.black),),
+                  ),
+                  const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.max,
