@@ -283,8 +283,12 @@ setState(() {
     if (data == null || !data.containsKey(inwardNo)) return null;
 
     final inwardData = Map<String, dynamic>.from(data[inwardNo]);
-    print(inwardNo);
-    print(inwardData);
+    debugPrint('inwardNo: $inwardNo');
+    try {
+      debugPrint('inwardData: ${jsonEncode(inwardData)}');
+    } catch (e) {
+      debugPrint('inwardData (toString): ${inwardData.toString()}');
+    }
     inwardData['inwardNo'] = inwardNo; // Add it if missing
     inwardData['batchId'] = batchId;   // Optional for tracking
 setState(() {
@@ -311,6 +315,9 @@ setState(() {
   _remarksController.text = inwardData['remarks'] ?? '';
   isLoading=false;
 });
+// keep a copy of original inward data for preserving values on update
+_inward = inwardData;
+debugPrint('Fetched inward: inwardNo=$inwardNo, date=${inwardData['date']}, time=${inwardData['time']}');
     return inwardData;
   } catch (e) {
     isLoading=false;
@@ -328,8 +335,9 @@ setState(() {
       );
       if (picked != null) {
         setState(() {
-          _dateController.text = DateFormat('MM/dd/yyyy').format(DateTime.now());
+          _dateController.text = DateFormat('yyyy-MM-dd').format(picked);
         });
+        debugPrint('Date picker selected: ${_dateController.text} (picked=$picked)');
       }
     }
 Future<void> launchEmail({
@@ -353,10 +361,11 @@ Future<void> launchEmail({
       );
       if (picked != null) {
         final now = DateTime.now();
-        final dt = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, TimeOfDay.now().hour, TimeOfDay.now().minute);
+        final dt = DateTime(now.year, now.month, now.day, picked.hour, picked.minute);
         setState(() {
-          _timeController.text = DateFormat('HH:mm').format(DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, TimeOfDay.now().hour, TimeOfDay.now().minute));
+          _timeController.text = DateFormat('HH:mm').format(dt);
         });
+        debugPrint('Time picker selected: ${_timeController.text} (hour=${picked.hour}, minute=${picked.minute})');
       }
     }
 
@@ -370,15 +379,18 @@ Future<void> launchEmail({
     }
 
     try {
+      debugPrint("Submitting with date: ${_dateController.text}");
       final inwardNo = _inwardNoController.text;
       final data = {
         'inwardNo': inwardNo,
         'receivedBy': _receivedByController.text.trim(),
-        'date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
-        'time': DateFormat('HH:mm').format(
-          DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day,
-              TimeOfDay.now().hour, TimeOfDay.now().minute),
-        ),
+        // Preserve existing date/time unless the user changed them in the controllers
+        'date': _dateController.text.trim().isNotEmpty
+            ? _dateController.text.trim()
+            : (_inward['date'] ?? DateFormat('yyyy-MM-dd').format(DateTime.now())),
+        'time': _timeController.text.trim().isNotEmpty
+            ? _timeController.text.trim()
+            : (_inward['time'] ?? DateFormat('HH:mm').format(DateTime.now())),
         
         'trustName': _trustNameController.text.trim(),
         'senderCode': _selectedSenderCode == "Other"
@@ -411,6 +423,21 @@ Future<void> launchEmail({
         'timestamp': FieldValue.serverTimestamp(),
       };
 
+      // Debug: determine source of date/time and log full payload
+      final String dateSource = _dateController.text.trim().isNotEmpty
+          ? 'controller'
+          : (_inward['date'] != null ? 'existing' : 'now');
+      final String timeSource = _timeController.text.trim().isNotEmpty
+          ? 'controller'
+          : (_inward['time'] != null ? 'existing' : 'now');
+
+      debugPrint('Preparing to write inward: dateSource=$dateSource, timeSource=$timeSource');
+      try {
+        debugPrint('Payload preview: ${jsonEncode(data)}');
+      } catch (e) {
+        debugPrint('Payload preview (toString): ${data.toString()}');
+      }
+
       // Add to first batch that has < 300 entries
       final coll = FirebaseFirestore.instance.collection('groupedInwards');
       final cleanInwardNo = widget.inwardNo.trim().toUpperCase();
@@ -429,6 +456,7 @@ Future<void> launchEmail({
           await batchDocRef.set({
             cleanInwardNo: data,
           }, SetOptions(merge: true));
+          debugPrint('Wrote data for $cleanInwardNo to batch-$batchIndex');
           updated = true;
         } else {
           batchIndex++;
