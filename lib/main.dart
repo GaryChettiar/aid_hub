@@ -2,6 +2,8 @@ import 'dart:core';
 
 import 'package:finance_manager/DeleteInwards.dart';
 import 'package:finance_manager/Login.dart';
+import 'package:finance_manager/archive_data.dart';
+import 'package:finance_manager/archived_inwards_list.dart';
 import 'package:finance_manager/contacts.dart';
 import 'package:finance_manager/inw_det.dart';
 import 'package:finance_manager/inward_details.dart';
@@ -503,24 +505,66 @@ class _DashboardState extends State<Dashboard> {
                             "aob@gmail.com" ||
                         FirebaseAuth.instance.currentUser?.email ==
                             "john.finadm@gmail.com")
-                    ? InkWell(
-                        onTap: () {
-                          Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => InwardDeletionPage()));
-                        },
-                        child: Container(
-                          alignment: Alignment.center,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey, width: 1)),
-                          height: 50,
-                          child: Text(
-                            "Manage Inwards",
-                            style: TextStyle(color: Colors.white),
+                    ? Column(
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => InwardDeletionPage()));
+                            },
+                            child: Container(
+                              alignment: Alignment.center,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey, width: 1)),
+                              height: 50,
+                              child: Text(
+                                "Manage Inwards",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
                           ),
-                        ),
+                          InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => ArchivePage()));
+                            },
+                            child: Container(
+                              alignment: Alignment.center,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey, width: 1)),
+                              height: 50,
+                              child: Text(
+                                "Archive Old Data",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => ArchivedInwardsListPage()));
+                            },
+                            child: Container(
+                              alignment: Alignment.center,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey, width: 1)),
+                              height: 50,
+                              child: Text(
+                                "View Archived Inwards",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
                       )
                     : SizedBox.shrink()
               ],

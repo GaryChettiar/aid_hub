@@ -358,17 +358,36 @@ Future<void> _fetchDescriptions() async {
   const prefix = 'INWD-';
 
   try {
-    final groupedDocs = await FirebaseFirestore.instance
-        .collection('groupedInwards')
-        .get();
+    final now = DateTime.now();
+    final financialYearStart = now.month >= 4 
+        ? DateTime(now.year, 4, 1) 
+        : DateTime(now.year - 1, 4, 1);
 
     int maxSerial = 0;
 
-    for (var doc in groupedDocs.docs) {
-      final data = doc.data();
+    // Helper to parse date and extract serial
+    void processRecord(String inwardNo, dynamic dateVal) {
+      DateTime? recordDate;
+      if (dateVal is String) {
+        try {
+          recordDate = DateTime.parse(dateVal);
+        } catch (e) {
+          final parts = dateVal.split(RegExp(r'[-/]'));
+          if (parts.length >= 3) {
+            if (parts[0].length == 4) {
+              recordDate = DateTime.tryParse('${parts[0]}-${parts[1].padLeft(2, '0')}-${parts[2].padLeft(2, '0')}');
+            } else if (parts[2].length == 4) {
+              recordDate = DateTime.tryParse('${parts[2]}-${parts[0].padLeft(2, '0')}-${parts[1].padLeft(2, '0')}');
+            }
+          }
+        }
+      } else if (dateVal is Timestamp) {
+        recordDate = dateVal.toDate();
+      }
 
-      for (var key in data.keys) {
-        final match = RegExp(r'INWD-(\d{4})').firstMatch(key);
+      if (recordDate != null && (recordDate.isAtSameMomentAs(financialYearStart) || recordDate.isAfter(financialYearStart))) {
+        // More lenient regex to find the last 4 digits
+        final match = RegExp(r'(\d{4})$').firstMatch(inwardNo);
         if (match != null) {
           final serial = int.tryParse(match.group(1) ?? '0') ?? 0;
           if (serial > maxSerial) {
@@ -376,6 +395,28 @@ Future<void> _fetchDescriptions() async {
           }
         }
       }
+    }
+
+    // 1. Search 'groupedInwards'
+    final groupedDocs = await FirebaseFirestore.instance.collection('groupedInwards').get();
+    for (var doc in groupedDocs.docs) {
+      if (doc.id == 'meta' || doc.id == 'meta-inward') continue;
+      final data = doc.data();
+      for (var entry in data.entries) {
+        if (entry.value is Map) {
+          final inwardNo = entry.key;
+          final inwardData = entry.value as Map<String, dynamic>;
+          processRecord(inwardNo, inwardData['date'] ?? inwardData['timestamp']);
+        }
+      }
+    }
+
+    // 2. Search 'inwards' (fallback for legacy or separate entries)
+    final inwardsDocs = await FirebaseFirestore.instance.collection('inwards').get();
+    for (var doc in inwardsDocs.docs) {
+      final data = doc.data();
+      final inwardNo = data['inwardNo']?.toString() ?? doc.id;
+      processRecord(inwardNo, data['date'] ?? data['timestamp']);
     }
 
     final nextSerial = maxSerial + 1;
