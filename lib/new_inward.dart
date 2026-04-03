@@ -563,73 +563,79 @@ Future<void> launchEmail({
 
       /// Additional logic remains the same
       if (_selectedSenderCode == "Other") {
-  final senderMetaRef = FirebaseFirestore.instance.collection('senders').doc('senderMeta');
-  final senderMetaSnap = await senderMetaRef.get();
-  final senderMeta = senderMetaSnap.data()!;
+        final senderMetaRef = FirebaseFirestore.instance.collection('senders').doc('senderMeta');
+        final senderColl = FirebaseFirestore.instance.collection('senders');
 
-  String currentBatch = senderMeta['currentBatch'];
-  int currentCount = senderMeta['batchCounts'][currentBatch] ?? 0;
+        await FirebaseFirestore.instance.runTransaction((transaction) async {
+          final metaSnap = await transaction.get(senderMetaRef);
+          if (!metaSnap.exists) throw Exception("Sender metadata missing");
+          final metaData = metaSnap.data()!;
 
-  // Check if current batch has space
-  if (currentCount >= 1000) {
-    // Create new batch
-    int newBatchNumber = int.parse(currentBatch.replaceAll('batch', '')) + 1;
-    currentBatch = 'batch$newBatchNumber';
-    currentCount = 0;
+          String currentBatch = metaData['currentBatch'];
+          Map<String, dynamic> batchCounts = Map<String, dynamic>.from(metaData['batchCounts']);
+          int currentCount = batchCounts[currentBatch] ?? 0;
 
-    // Update metadata
-    await senderMetaRef.set({
-      'currentBatch': currentBatch,
-      'batchCounts.$currentBatch': 0,
-    }, SetOptions(merge: true));
-  }
+          if (currentCount >= 1000) {
+            int newBatchNumber = int.parse(currentBatch.replaceAll('batch', '')) + 1;
+            currentBatch = 'batch$newBatchNumber';
+            currentCount = 0;
+            batchCounts[currentBatch] = 0;
+          }
 
-  final senderRef = FirebaseFirestore.instance.collection('senders').doc(currentBatch);
+          int newIndex = currentCount + 1;
+          final senderRef = senderColl.doc(currentBatch);
 
-  // Add new sender fields
-  await senderRef.set({
-    'sname${currentCount + 1}': _newSenderDetailsController.text.trim(),
-    'scode${currentCount + 1}': _newSenderCodeController.text.trim(),
-    'semail${currentCount + 1}': _newSenderEmailController.text.trim(),
-    'scontact${currentCount + 1}': '', // optional
-  }, SetOptions(merge: true));
+          transaction.set(senderRef, {
+            'sname$newIndex': _newSenderDetailsController.text.trim(),
+            'scode$newIndex': _newSenderCodeController.text.trim(),
+            'semail$newIndex': _newSenderEmailController.text.trim(),
+            'scontact$newIndex': '',
+          }, SetOptions(merge: true));
 
-  // Update count in meta
-  await senderMetaRef.update({
-    'batchCounts.$currentBatch': currentCount + 1,
-  });
-}
+          batchCounts[currentBatch] = newIndex;
+          transaction.set(senderMetaRef, {
+            'currentBatch': currentBatch,
+            'batchCounts': batchCounts,
+          }, SetOptions(merge: true));
+        });
+      }
 
 
       if (_selectedDescriptionCode == "Other") {
-  final descMetaRef = FirebaseFirestore.instance.collection('descriptions').doc('descMeta');
-  final descMetaSnap = await descMetaRef.get();
-  final descMeta = descMetaSnap.data()!;
+        final descMetaRef = FirebaseFirestore.instance.collection('descriptions').doc('descMeta');
+        final descColl = FirebaseFirestore.instance.collection('descriptions');
 
-  String currentBatch = descMeta['currentBatch'];
-  int currentCount = descMeta['batchCounts'][currentBatch] ?? 0;
+        await FirebaseFirestore.instance.runTransaction((transaction) async {
+          final metaSnap = await transaction.get(descMetaRef);
+          if (!metaSnap.exists) throw Exception("Description metadata missing");
+          final metaData = metaSnap.data()!;
 
-  if (currentCount >= 1000) {
-    int newBatchNumber = int.parse(currentBatch.replaceAll('batch', '')) + 1;
-    currentBatch = 'batch$newBatchNumber';
-    currentCount = 0;
+          String currentBatch = metaData['currentBatch'];
+          Map<String, dynamic> batchCounts = Map<String, dynamic>.from(metaData['batchCounts']);
+          int currentCount = batchCounts[currentBatch] ?? 0;
 
-    await descMetaRef.set({
-      'currentBatch': currentBatch,
-      'batchCounts.$currentBatch': 0,
-    }, SetOptions(merge: true));
-  }
+          if (currentCount >= 1000) {
+            int newBatchNumber = int.parse(currentBatch.replaceAll('batch', '')) + 1;
+            currentBatch = 'batch$newBatchNumber';
+            currentCount = 0;
+            batchCounts[currentBatch] = 0;
+          }
 
-  final descRef = FirebaseFirestore.instance.collection('descriptions').doc(currentBatch);
-  await descRef.set({
-    'ddesc${currentCount + 1}': _newDescriptionDetailsController.text.trim(),
-    'dcode${currentCount + 1}': _newDescriptionCodeController.text.trim(),
-  }, SetOptions(merge: true));
+          int newIndex = currentCount + 1;
+          final descRef = descColl.doc(currentBatch);
 
-  await descMetaRef.update({
-    'batchCounts.$currentBatch': currentCount + 1,
-  });
-}
+          transaction.set(descRef, {
+            'dname$newIndex': _newDescriptionDetailsController.text.trim(),
+            'dcode$newIndex': _newDescriptionCodeController.text.trim(),
+          }, SetOptions(merge: true));
+
+          batchCounts[currentBatch] = newIndex;
+          transaction.set(descMetaRef, {
+            'currentBatch': currentBatch,
+            'batchCounts': batchCounts,
+          }, SetOptions(merge: true));
+        });
+      }
 
 
     if (_selectedDescReference == "Other") {

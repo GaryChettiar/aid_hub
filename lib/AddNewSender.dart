@@ -25,35 +25,40 @@ class _AddNewSenderPageState extends State<AddNewSenderPage> {
   final coll = FirebaseFirestore.instance.collection('senders');
 
   try {
-    final metaSnapshot = await metaRef.get();
-    final metaData = metaSnapshot.data()!;
-    Map<String, dynamic> batchCounts = Map<String, dynamic>.from(metaData['batchCounts']);
-    String currentBatch = metaData['currentBatch'];
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final metaSnapshot = await transaction.get(metaRef);
+      if (!metaSnapshot.exists) throw Exception("Metadata document missing");
 
-    int currentCount = (batchCounts[currentBatch] ?? 0) as int;
+      final metaData = metaSnapshot.data()!;
+      Map<String, dynamic> batchCounts = Map<String, dynamic>.from(metaData['batchCounts']);
+      String currentBatch = metaData['currentBatch'];
+      int currentCount = (batchCounts[currentBatch] ?? 0) as int;
 
-    // If current batch is full, create a new one
-    if (currentCount >= 1000) {
-      int newBatchNumber = batchCounts.length + 1;
-      currentBatch = 'batch$newBatchNumber';
-      batchCounts[currentBatch] = 0;
-    }
+      // If current batch is full, create a new one
+      if (currentCount >= 1000) {
+        int newBatchNumber = int.parse(currentBatch.replaceAll('batch', '')) + 1;
+        currentBatch = 'batch$newBatchNumber';
+        currentCount = 0;
+        batchCounts[currentBatch] = 0;
+      }
 
-    int newIndex = batchCounts[currentBatch] + 1;
+      int newIndex = currentCount + 1;
+      final batchDocRef = coll.doc(currentBatch);
 
-    await coll.doc(currentBatch).set({
-      'scode$newIndex': _codeController.text.trim(),
-      'sname$newIndex': _nameController.text.trim(),
-      'semail$newIndex': _emailController.text.trim(),
-      'scontact$newIndex': _contactController.text.trim(),
-    }, SetOptions(merge: true));
+      transaction.set(batchDocRef, {
+        'scode$newIndex': _codeController.text.trim(),
+        'sname$newIndex': _nameController.text.trim(),
+        'semail$newIndex': _emailController.text.trim(),
+        'scontact$newIndex': _contactController.text.trim(),
+      }, SetOptions(merge: true));
 
-    // Update metadata
-    batchCounts[currentBatch] = newIndex;
-    await metaRef.set({
-      'batchCounts': batchCounts,
-      'currentBatch': currentBatch,
-    }, SetOptions(merge: true));
+      // Update metadata
+      batchCounts[currentBatch] = newIndex;
+      transaction.set(metaRef, {
+        'batchCounts': batchCounts,
+        'currentBatch': currentBatch,
+      }, SetOptions(merge: true));
+    });
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sender added successfully")));

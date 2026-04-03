@@ -7,6 +7,7 @@ import 'package:finance_manager/archived_inwards_list.dart';
 import 'package:finance_manager/contacts.dart';
 import 'package:finance_manager/inw_det.dart';
 import 'package:finance_manager/inward_details.dart';
+import 'package:finance_manager/maintenance_page.dart';
 import 'package:finance_manager/new_inward.dart';
 import 'package:finance_manager/update.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -563,6 +564,17 @@ class _DashboardState extends State<Dashboard> {
                                 style: TextStyle(color: Colors.white),
                               ),
                             ),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.settings, color: Colors.white),
+                            title: const Text('Maintenance', style: TextStyle(color: Colors.white)),
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const MaintenancePage()),
+                              );
+                            },
                           ),
                         ],
                       )
