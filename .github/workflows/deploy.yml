@@ -26,7 +26,7 @@ jobs:
 
       - name: Add Vercel config for SPA routing
         run: |
-          echo '{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }' > build/web/vercel.json
+          echo '{ "buildCommand": null, "installCommand": null, "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }' > build/web/vercel.json
 
       - name: Deploy to Vercel
         run: |
