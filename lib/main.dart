@@ -565,17 +565,17 @@ class _DashboardState extends State<Dashboard> {
                               ),
                             ),
                           ),
-                          ListTile(
-                            leading: const Icon(Icons.settings, color: Colors.white),
-                            title: const Text('Maintenance', style: TextStyle(color: Colors.white)),
-                            onTap: () {
-                              Navigator.pop(context);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const MaintenancePage()),
-                              );
-                            },
-                          ),
+                          // ListTile(
+                          //   leading: const Icon(Icons.settings, color: Colors.white),
+                          //   title: const Text('Maintenance', style: TextStyle(color: Colors.white)),
+                          //   onTap: () {
+                          //     Navigator.pop(context);
+                          //     Navigator.push(
+                          //       context,
+                          //       MaterialPageRoute(builder: (context) => const MaintenancePage()),
+                          //     );
+                          //   },
+                          // ),
                         ],
                       )
                     : SizedBox.shrink()
