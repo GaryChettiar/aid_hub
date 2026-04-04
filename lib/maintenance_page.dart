@@ -234,7 +234,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Card(
-              color: Colors.blueRange,
+              // color: Colors.blueRange,
               child: Padding(
                 padding: EdgeInsets.all(15.0),
                 child: Text(
