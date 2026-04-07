@@ -1,34 +1,87 @@
-import 'package:finance_manager/inward_details.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:excel/excel.dart';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:file_picker/file_picker.dart';
 
 class ArchivedInwardsListPage extends StatefulWidget {
   @override
-  _ArchivedInwardsListPageState createState() => _ArchivedInwardsListPageState();
+  _ArchivedInwardsListPageState createState() =>
+      _ArchivedInwardsListPageState();
 }
 
+enum DateFilterType { none, exact, predefinedRange, customRange }
+
 class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
+  DateFilterType _dateFilterType = DateFilterType.none;
+  DateTime? _exactDate;
+  DateTime? _customStartDate;
+  DateTime? _customEndDate;
+  String? _selectedPredefinedRange;
+
+  String? _selectedStatus;
+  String? _selectedDescReference;
+  String? _selectedDescription;
+
   String _inwardSearchText = '';
   String _senderSearchText = '';
-  
-  Future<List<Map<String, dynamic>>> _fetchAllArchivedData() async {
+
+  Set<String> allDescReferences = {};
+  Set<String> allDescriptions = {};
+
+  List<Map<String, dynamic>> _allData = [];
+  bool _isLoading = true;
+
+  final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
+  DateTime _stripTime(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
+
+  final Map<String, int> predefinedRanges = {
+    'Last 3 months': 3,
+    'Last 6 months': 6,
+  };
+
+  final List<String> statusList = ['Pending', 'Completed'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAllData();
+  }
+
+  // ── Load everything once ──────────────────────────────────────────────────
+
+  Future<void> _loadAllData() async {
+    setState(() => _isLoading = true);
+
+    final descRefSnap =
+        await FirebaseFirestore.instance.collection('descReferences').get();
+    final descriptionsSnap =
+        await FirebaseFirestore.instance.collection('descriptions').get();
+
     final List<Map<String, dynamic>> results = [];
-    
-    // 1. Fetch from 'archived_inwards'
-    final snapshot1 = await FirebaseFirestore.instance.collection('archived_inwards').get();
+
+    final snapshot1 = await FirebaseFirestore.instance
+        .collection('archived_inwards')
+        .get();
     for (var doc in snapshot1.docs) {
       final data = Map<String, dynamic>.from(doc.data());
       data['docId'] = doc.id;
       data['collectionName'] = 'archived_inwards';
       results.add(data);
     }
-    
-    // 2. Fetch from 'archived_grouped_inwards'
-    final snapshot2 = await FirebaseFirestore.instance.collection('archived_grouped_inwards').get();
+
+    final snapshot2 = await FirebaseFirestore.instance
+        .collection('archived_grouped_inwards')
+        .get();
     for (var doc in snapshot2.docs) {
-      final data = doc.data();
-      for (var entry in data.entries) {
+      for (var entry in doc.data().entries) {
         if (entry.value is Map) {
           final inwardData = Map<String, dynamic>.from(entry.value);
           inwardData['inwardNo'] ??= entry.key;
@@ -39,151 +92,518 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
         }
       }
     }
-    
-    // 3. Sort by Inward Number numerically (Ascending)
+
     results.sort((a, b) {
-      final aNo = int.tryParse(RegExp(r'\d+$').stringMatch(a['inwardNo']?.toString() ?? '') ?? '0') ?? 0;
-      final bNo = int.tryParse(RegExp(r'\d+$').stringMatch(b['inwardNo']?.toString() ?? '') ?? '0') ?? 0;
+      final aNo = int.tryParse(
+              RegExp(r'\d+$').stringMatch(a['inwardNo']?.toString() ?? '') ??
+                  '0') ??
+          0;
+      final bNo = int.tryParse(
+              RegExp(r'\d+$').stringMatch(b['inwardNo']?.toString() ?? '') ??
+                  '0') ??
+          0;
       return aNo.compareTo(bNo);
     });
-    
-    return results;
+
+    setState(() {
+      _allData = results;
+      allDescReferences = descRefSnap.docs
+          .map((doc) => doc.data()['value']?.toString() ?? '')
+          .where((v) => v.isNotEmpty)
+          .toSet();
+      allDescriptions = descriptionsSnap.docs
+          .map((doc) => doc.data()['description']?.toString() ?? '')
+          .where((v) => v.isNotEmpty)
+          .toSet();
+      _isLoading = false;
+    });
   }
+
+  // ── Computed filtered list ────────────────────────────────────────────────
+
+  List<Map<String, dynamic>> get _filteredDocs {
+    return _allData.where((data) {
+      final dateStr = data['date'] as String?;
+      return (_dateFilterType == DateFilterType.none ||
+              (dateStr != null && _isDateInFilterRange(dateStr))) &&
+          _matchesStatusFilter(data['status'] as String?) &&
+          _matchesDescReferenceFilter(
+              data['descriptionReference'] as String?) &&
+          _matchesDescriptionFilter(data['description'] as String?) &&
+          _matchesInwardSearch(data['inwardNo'] as String?) &&
+          _matchesSenderSearch(data['senderName'] as String?);
+    }).toList();
+  }
+
+  // ── Date pickers ──────────────────────────────────────────────────────────
+
+  Future<void> _pickExactDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _exactDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (date != null) {
+      setState(() {
+        _exactDate = date;
+        _dateFilterType = DateFilterType.exact;
+      });
+    }
+  }
+
+  Future<void> _pickCustomStartDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _customStartDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: _customEndDate ?? DateTime.now(),
+    );
+    if (date != null) {
+      setState(() {
+        _customStartDate = date;
+        if (_customEndDate != null) _dateFilterType = DateFilterType.customRange;
+      });
+    }
+  }
+
+  Future<void> _pickCustomEndDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _customEndDate ?? DateTime.now(),
+      firstDate: _customStartDate ?? DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (date != null) {
+      setState(() {
+        _customEndDate = date;
+        if (_customStartDate != null)
+          _dateFilterType = DateFilterType.customRange;
+      });
+    }
+  }
+
+  void _setPredefinedRange(String rangeLabel) {
+    final months = predefinedRanges[rangeLabel];
+    if (months == null) return;
+    final now = DateTime.now();
+    setState(() {
+      _selectedPredefinedRange = rangeLabel;
+      _customStartDate = DateTime(now.year, now.month - months, now.day);
+      _customEndDate = now;
+      _dateFilterType = DateFilterType.predefinedRange;
+    });
+  }
+
+  // ── Filter helpers ────────────────────────────────────────────────────────
+
+  bool _isDateInFilterRange(String dateStr) {
+    try {
+      final date = _stripTime(_dateFormat.parse(dateStr));
+      if (_dateFilterType == DateFilterType.exact) {
+        return date == _stripTime(_exactDate!);
+      } else if (_dateFilterType == DateFilterType.predefinedRange ||
+          _dateFilterType == DateFilterType.customRange) {
+        final start = _stripTime(_customStartDate!);
+        final end = _stripTime(_customEndDate!);
+        return !date.isBefore(start) && !date.isAfter(end);
+      }
+    } catch (_) {
+      return false;
+    }
+    return true;
+  }
+
+  bool _matchesStatusFilter(String? status) {
+    if (_selectedStatus == null || _selectedStatus == 'All') return true;
+    return status?.toLowerCase() == _selectedStatus!.toLowerCase();
+  }
+
+  bool _matchesDescReferenceFilter(String? reference) {
+    if (_selectedDescReference == null || _selectedDescReference == 'All')
+      return true;
+    return reference == _selectedDescReference;
+  }
+
+  bool _matchesDescriptionFilter(String? desc) {
+    if (_selectedDescription == null || _selectedDescription == 'All')
+      return true;
+    return desc == _selectedDescription;
+  }
+
+  bool _matchesInwardSearch(String? inwardNo) {
+    if (_inwardSearchText.isEmpty) return true;
+    return inwardNo
+            ?.toLowerCase()
+            .contains(_inwardSearchText.toLowerCase()) ??
+        false;
+  }
+
+  bool _matchesSenderSearch(String? senderName) {
+    if (_senderSearchText.isEmpty) return true;
+    return senderName
+            ?.toLowerCase()
+            .contains(_senderSearchText.toLowerCase()) ??
+        false;
+  }
+
+  // ── Exports ───────────────────────────────────────────────────────────────
+
+  Future<void> _generatePdfAndPrint(List<Map<String, dynamic>> docs) async {
+    if (docs.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('No data to export')));
+      return;
+    }
+
+    final pdf = pw.Document();
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (context) => [
+          pw.Text('Archived Inward Requests Report',
+              style: pw.TextStyle(fontSize: 24)),
+          pw.SizedBox(height: 20),
+          pw.Table.fromTextArray(
+            headers: [
+              'Inward No',
+              'Sender Name',
+              'Date',
+              'Status',
+              'Desc Reference',
+              'Description',
+            ],
+            data: docs
+                .map((doc) => [
+                      doc['inwardNo'] ?? '',
+                      doc['senderName'] ?? '',
+                      doc['date'] ?? '',
+                      doc['status'] ?? '',
+                      doc['descriptionReference'] ?? '',
+                      doc['description'] ?? '',
+                    ])
+                .toList(),
+          ),
+        ],
+      ),
+    );
+
+    // Web: use Printing (opens browser print dialog)
+    // Mobile/desktop: same — Printing works everywhere for PDF
+    await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save());
+  }
+
+  Future<void> _exportExcel(List<Map<String, dynamic>> docs) async {
+    if (docs.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('No data to export')));
+      return;
+    }
+
+    final excel = Excel.createExcel();
+    final sheet = excel[excel.getDefaultSheet()!];
+
+    sheet.appendRow([
+      TextCellValue('Inward No'),
+      TextCellValue('Sender'),
+      TextCellValue('Date'),
+      TextCellValue('Status'),
+      TextCellValue('Desc Ref'),
+      TextCellValue('Description'),
+    ]);
+
+    for (var doc in docs) {
+      sheet.appendRow([
+        TextCellValue(doc['inwardNo']?.toString() ?? ''),
+        TextCellValue(doc['senderName']?.toString() ?? ''),
+        TextCellValue(doc['date']?.toString() ?? ''),
+        TextCellValue(doc['status']?.toString() ?? ''),
+        TextCellValue(doc['descriptionReference']?.toString() ?? ''),
+        TextCellValue(doc['description']?.toString() ?? ''),
+      ]);
+    }
+
+    final fileBytes = Uint8List.fromList(excel.encode()!);
+
+    if (kIsWeb) {
+      // On web, pass bytes directly — FilePicker handles the browser download
+      await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Excel File',
+        fileName: 'archived_inwards.xlsx',
+        type: FileType.custom,
+        allowedExtensions: ['xlsx'],
+        bytes: fileBytes, // <-- required on web
+      );
+    } else {
+      // On mobile/desktop, pick a save path then write the file
+      final String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Excel File',
+        fileName: 'archived_inwards.xlsx',
+        type: FileType.custom,
+        allowedExtensions: ['xlsx'],
+      );
+      if (outputFile != null) {
+        await File(outputFile).writeAsBytes(fileBytes);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Saved to $outputFile')),
+        );
+      }
+    }
+  }
+
+  // ── Clear filters ─────────────────────────────────────────────────────────
+
+  void _clearAllFilters() {
+    setState(() {
+      _dateFilterType = DateFilterType.none;
+      _exactDate = null;
+      _customStartDate = null;
+      _customEndDate = null;
+      _selectedPredefinedRange = null;
+      _selectedStatus = null;
+      _selectedDescReference = null;
+      _selectedDescription = null;
+      _inwardSearchText = '';
+      _senderSearchText = '';
+    });
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final filtered = _filteredDocs;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Archived Inwards'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadAllData,
+            tooltip: 'Refresh',
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // Search fields
+          // ── Search bars ──────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    decoration: const InputDecoration(
-                      labelText: 'Search by Inward No',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        _inwardSearchText = value;
-                      });
-                    },
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: 'Search by Inward Number',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                    prefixIcon: const Icon(Icons.search),
                   ),
+                  onChanged: (v) => setState(() => _inwardSearchText = v),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    decoration: const InputDecoration(
-                      labelText: 'Search by Sender',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        _senderSearchText = value;
-                      });
-                    },
+                const SizedBox(height: 8),
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: 'Search by Sender Name',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                    prefixIcon: const Icon(Icons.person_search),
                   ),
+                  onChanged: (v) => setState(() => _senderSearchText = v),
                 ),
               ],
             ),
           ),
+
+          // ── Filters ──────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white),
+                  onPressed: _pickExactDate,
+                  child: Text(_exactDate == null
+                      ? 'Pick Exact Date'
+                      : 'Exact: ${_dateFormat.format(_exactDate!)}'),
+                ),
+                DropdownButton<String>(
+                  hint: const Text('Predefined Ranges'),
+                  value: _selectedPredefinedRange,
+                  items: predefinedRanges.keys
+                      .map((label) =>
+                          DropdownMenuItem(value: label, child: Text(label)))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) _setPredefinedRange(v);
+                  },
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white),
+                  onPressed: _pickCustomStartDate,
+                  child: Text(_customStartDate == null
+                      ? 'Custom Start Date'
+                      : 'Start: ${_dateFormat.format(_customStartDate!)}'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white),
+                  onPressed: _pickCustomEndDate,
+                  child: Text(_customEndDate == null
+                      ? 'Custom End Date'
+                      : 'End: ${_dateFormat.format(_customEndDate!)}'),
+                ),
+                DropdownButton<String>(
+                  hint: const Text('Filter by Status'),
+                  value: _selectedStatus,
+                  items: ['All', ...statusList]
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedStatus = v),
+                ),
+                DropdownButton<String>(
+                  hint: const Text('Filter by Desc Reference'),
+                  value: _selectedDescReference,
+                  items: ['All', ...allDescReferences]
+                      .map((ref) =>
+                          DropdownMenuItem(value: ref, child: Text(ref)))
+                      .toList(),
+                  onChanged: (v) =>
+                      setState(() => _selectedDescReference = v),
+                ),
+                DropdownButton<String>(
+                  hint: const Text('Filter by Description'),
+                  value: _selectedDescription,
+                  items: ['All', ...allDescriptions]
+                      .map((desc) =>
+                          DropdownMenuItem(value: desc, child: Text(desc)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedDescription = v),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                    padding: const EdgeInsets.all(10),
+                    side: const BorderSide(color: Colors.black),
+                  ),
+                  onPressed: _clearAllFilters,
+                  child: const Text('Clear All Filters'),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Download buttons ─────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.picture_as_pdf),
+                  label: const Text('Download PDF'),
+                  onPressed: () => _generatePdfAndPrint(filtered),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.table_chart),
+                  label: const Text('Download Excel'),
+                  onPressed: () => _exportExcel(filtered),
+                ),
+              ],
+            ),
+          ),
+
+          // ── List ─────────────────────────────────────────────────────────
           Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: _fetchAllArchivedData(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('No archived data found'));
-                }
+            child: filtered.isEmpty
+                ? const Center(child: Text('No data matches the filter'))
+                : ListView.builder(
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final data = filtered[index];
+                      final inwardNo = data['inwardNo'] ?? 'Unknown';
+                      final reqDateStr = data['date'] ?? 'No Date';
+                      final status = data['status'] ?? 'Unknown';
+                      final descReference =
+                          data['descriptionReference'] ?? 'Unknown';
+                      final description = data['description'] ?? 'Unknown';
+                      final senderName = data['senderName'] ?? 'Unknown';
+                      final docId = data['docId'] ?? inwardNo;
+                      final collectionName =
+                          data['collectionName'] ?? 'archived_inwards';
 
-                final allData = snapshot.data!;
-
-                List<Map<String, dynamic>> filteredDocs = allData.where((data) {
-                  final inwardNo = data['inwardNo'] as String?;
-                  final senderName = data['senderName'] as String?;
-
-                  return (inwardNo?.toLowerCase().contains(_inwardSearchText.toLowerCase()) ?? false) &&
-                      (senderName?.toLowerCase().contains(_senderSearchText.toLowerCase()) ?? false);
-                }).toList();
-
-                if (filteredDocs.isEmpty) {
-                  return const Center(child: Text('No data matches the search'));
-                }
-
-                return ListView.builder(
-                  itemCount: filteredDocs.length,
-                  itemBuilder: (context, index) {
-                    final data = filteredDocs[index];
-                    final inwardNo = data['inwardNo'] ?? 'Unknown';
-                    final reqDateStr = data['date'] ?? 'No Date';
-                    final status = data['status'] ?? 'Unknown';
-                    final descReference = data['descriptionReference'] ?? 'Unknown';
-                    final description = data['description'] ?? 'Unknown';
-                    final senderName = data['senderName'] ?? 'Unknown';
-                    final docId = data['docId'] ?? inwardNo;
-                    final collectionName = data['collectionName'] ?? 'archived_inwards';
-
-                    return InkWell(
-                      onTap: () {
-                        // Navigate to editable details page
-                        Navigator.push(
+                      return InkWell(
+                        onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => ArchivedInwardDetailsPage(docId: docId, data: data, collectionName: collectionName),
-                          ),
-                        );
-                      },
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Expanded(flex: 2, child: Text(inwardNo)),
-                                Expanded(flex: 2, child: Text(senderName)),
-                                Expanded(flex: 2, child: Text(reqDateStr)),
-                                Expanded(
-                                  flex: 2,
-                                  child: Chip(
-                                    padding: EdgeInsets.all(5),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    backgroundColor: status == 'Pending'
-                                        ? const Color(0xffffdddc)
-                                        : const Color(0xffa4e1bf),
-                                    label: Text(status, style: TextStyle(color: Colors.black)),
-                                  ),
-                                ),
-                                Expanded(flex: 2, child: Text(descReference)),
-                                Expanded(flex: 2, child: Text(description)),
-                              ],
+                            builder: (context) => ArchivedInwardDetailsPage(
+                              docId: docId,
+                              data: data,
+                              collectionName: collectionName,
                             ),
                           ),
-                          Divider(),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+                        ),
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Row(
+                                children: [
+                                  Expanded(flex: 2, child: Text(inwardNo)),
+                                  Expanded(flex: 2, child: Text(senderName)),
+                                  Expanded(flex: 2, child: Text(reqDateStr)),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Chip(
+                                      padding: const EdgeInsets.all(5),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(20)),
+                                      backgroundColor: status == 'Pending'
+                                          ? const Color(0xffffdddc)
+                                          : const Color(0xffa4e1bf),
+                                      label: Text(status,
+                                          style: const TextStyle(
+                                              color: Colors.black)),
+                                    ),
+                                  ),
+                                  Expanded(
+                                      flex: 2, child: Text(descReference)),
+                                  Expanded(flex: 2, child: Text(description)),
+                                ],
+                              ),
+                            ),
+                            const Divider(),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
     );
   }
 }
+
+// ── Details page ──────────────────────────────────────────────────────────────
 
 class ArchivedInwardDetailsPage extends StatefulWidget {
   final String docId;
@@ -198,23 +618,27 @@ class ArchivedInwardDetailsPage extends StatefulWidget {
   });
 
   @override
-  State<ArchivedInwardDetailsPage> createState() => _ArchivedInwardDetailsPageState();
+  State<ArchivedInwardDetailsPage> createState() =>
+      _ArchivedInwardDetailsPageState();
 }
 
-class _ArchivedInwardDetailsPageState extends State<ArchivedInwardDetailsPage> {
+class _ArchivedInwardDetailsPageState
+    extends State<ArchivedInwardDetailsPage> {
   late Map<String, dynamic> _data;
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _statusController = TextEditingController();
   final TextEditingController _handedOverController = TextEditingController();
   final TextEditingController _commentsController = TextEditingController();
-  final TextEditingController _additionalCommentsController = TextEditingController();
+  final TextEditingController _additionalCommentsController =
+      TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _data = Map<String, dynamic>.from(widget.data);
-    _statusController.text = (_data['status'] ?? '').toString().toUpperCase();
+    _statusController.text =
+        (_data['status'] ?? '').toString().toUpperCase();
     _handedOverController.text = _data['handedOver'] ?? '';
     _commentsController.text = _data['comments'] ?? '';
     _additionalCommentsController.text = _data['additionalComments'] ?? '';
@@ -222,23 +646,21 @@ class _ArchivedInwardDetailsPageState extends State<ArchivedInwardDetailsPage> {
 
   Future<void> _saveChanges() async {
     if (!_formKey.currentState!.validate()) return;
-
     try {
       final updates = {
-        'status': _statusController.text == "PENDING" ? "Pending" : "Completed",
+        'status':
+            _statusController.text == 'PENDING' ? 'Pending' : 'Completed',
         'handedOver': _handedOverController.text,
         'comments': _commentsController.text,
         'additionalComments': _additionalCommentsController.text,
       };
 
       if (widget.collectionName == 'archived_inwards') {
-        // Direct document update
         await FirebaseFirestore.instance
             .collection('archived_inwards')
             .doc(widget.docId)
             .update(updates);
       } else if (widget.collectionName == 'archived_grouped_inwards') {
-        // Update nested document
         final fieldKey = _data['fieldKey'] as String?;
         if (fieldKey != null) {
           await FirebaseFirestore.instance
@@ -254,21 +676,17 @@ class _ArchivedInwardDetailsPageState extends State<ArchivedInwardDetailsPage> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Updated successfully')),
-      );
+          const SnackBar(content: Text('Updated successfully')));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating: $e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error updating: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Archived Inward: ${widget.docId}'),
-      ),
+      appBar: AppBar(title: Text('Archived Inward: ${widget.docId}')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -276,7 +694,6 @@ class _ArchivedInwardDetailsPageState extends State<ArchivedInwardDetailsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Display read-only fields
               ..._data.entries
                   .where((e) => ![
                         'status',
@@ -294,18 +711,17 @@ class _ArchivedInwardDetailsPageState extends State<ArchivedInwardDetailsPage> {
                           style: const TextStyle(fontSize: 16),
                         ),
                       )),
-
               const SizedBox(height: 20),
-
-              // Editable fields
               _buildEditableField('status', _statusController),
               const SizedBox(height: 12),
               _buildEditableField('handedOver', _handedOverController),
               const SizedBox(height: 12),
-              _buildEditableField('comments', _commentsController, maxLines: 3),
+              _buildEditableField('comments', _commentsController,
+                  maxLines: 3),
               const SizedBox(height: 12),
-              _buildEditableField('additionalComments', _additionalCommentsController, maxLines: 3),
-
+              _buildEditableField(
+                  'additionalComments', _additionalCommentsController,
+                  maxLines: 3),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
@@ -321,7 +737,8 @@ class _ArchivedInwardDetailsPageState extends State<ArchivedInwardDetailsPage> {
     );
   }
 
-  Widget _buildEditableField(String label, TextEditingController controller, {int maxLines = 1}) {
+  Widget _buildEditableField(String label, TextEditingController controller,
+      {int maxLines = 1}) {
     if (label == 'status') {
       return DropdownButtonFormField<String>(
         value: controller.text.isNotEmpty ? controller.text : null,
@@ -329,46 +746,50 @@ class _ArchivedInwardDetailsPageState extends State<ArchivedInwardDetailsPage> {
           labelText: _formatTitle(label),
           filled: true,
           fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.grey)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.grey)),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         ),
         items: const [
           DropdownMenuItem(value: 'PENDING', child: Text('Pending')),
           DropdownMenuItem(value: 'COMPLETED', child: Text('Completed')),
         ],
         onChanged: (value) {
-          if (value != null) {
-            setState(() {
-              controller.text = value;
-            });
-          }
+          if (value != null) setState(() => controller.text = value);
         },
-        validator: (value) => value == null || value.isEmpty ? 'Please select a status' : null,
-      );
-    } else {
-      return TextFormField(
-        controller: controller,
-        maxLines: maxLines,
-        decoration: InputDecoration(
-          labelText: _formatTitle(label),
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.grey)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        ),
-        validator: (value) {
-          if (label == 'handedOver' && (value == null || value.isEmpty)) {
-            return 'Please enter Handed Over';
-          }
-          return null;
-        },
+        validator: (value) =>
+            value == null || value.isEmpty ? 'Please select a status' : null,
       );
     }
+    return TextFormField(
+      controller: controller,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: _formatTitle(label),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Colors.grey)),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      ),
+      validator: (value) {
+        if (label == 'handedOver' && (value == null || value.isEmpty)) {
+          return 'Please enter Handed Over';
+        }
+        return null;
+      },
+    );
   }
 
   String _formatTitle(String key) {
     final regex = RegExp(r'(?<=[a-z])[A-Z]');
-    String spaced = key.replaceAll('_', ' ').replaceAllMapped(regex, (match) => ' ${match.group(0)}');
+    final spaced = key
+        .replaceAll('_', ' ')
+        .replaceAllMapped(regex, (match) => ' ${match.group(0)}');
     return spaced[0].toUpperCase() + spaced.substring(1);
   }
 
