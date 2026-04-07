@@ -18,7 +18,10 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
     // 1. Fetch from 'archived_inwards'
     final snapshot1 = await FirebaseFirestore.instance.collection('archived_inwards').get();
     for (var doc in snapshot1.docs) {
-      results.add(doc.data());
+      final data = Map<String, dynamic>.from(doc.data());
+      data['docId'] = doc.id;
+      data['collectionName'] = 'archived_inwards';
+      results.add(data);
     }
     
     // 2. Fetch from 'archived_grouped_inwards'
@@ -29,6 +32,9 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
         if (entry.value is Map) {
           final inwardData = Map<String, dynamic>.from(entry.value);
           inwardData['inwardNo'] ??= entry.key;
+          inwardData['docId'] = doc.id;
+          inwardData['collectionName'] = 'archived_grouped_inwards';
+          inwardData['fieldKey'] = entry.key;
           results.add(inwardData);
         }
       }
@@ -122,14 +128,16 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
                     final descReference = data['descriptionReference'] ?? 'Unknown';
                     final description = data['description'] ?? 'Unknown';
                     final senderName = data['senderName'] ?? 'Unknown';
+                    final docId = data['docId'] ?? inwardNo;
+                    final collectionName = data['collectionName'] ?? 'archived_inwards';
 
                     return InkWell(
                       onTap: () {
-                        // For archived data, we might need to show read-only details
+                        // Navigate to editable details page
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => ArchivedInwardDetailsPage(docId: inwardNo, data: data),
+                            builder: (context) => ArchivedInwardDetailsPage(docId: docId, data: data, collectionName: collectionName),
                           ),
                         );
                       },
@@ -177,29 +185,199 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
   }
 }
 
-class ArchivedInwardDetailsPage extends StatelessWidget {
+class ArchivedInwardDetailsPage extends StatefulWidget {
   final String docId;
   final Map<String, dynamic> data;
+  final String collectionName;
 
-  const ArchivedInwardDetailsPage({super.key, required this.docId, required this.data});
+  const ArchivedInwardDetailsPage({
+    super.key,
+    required this.docId,
+    required this.data,
+    required this.collectionName,
+  });
+
+  @override
+  State<ArchivedInwardDetailsPage> createState() => _ArchivedInwardDetailsPageState();
+}
+
+class _ArchivedInwardDetailsPageState extends State<ArchivedInwardDetailsPage> {
+  late Map<String, dynamic> _data;
+  final _formKey = GlobalKey<FormState>();
+
+  final TextEditingController _statusController = TextEditingController();
+  final TextEditingController _handedOverController = TextEditingController();
+  final TextEditingController _commentsController = TextEditingController();
+  final TextEditingController _additionalCommentsController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _data = Map<String, dynamic>.from(widget.data);
+    _statusController.text = (_data['status'] ?? '').toString().toUpperCase();
+    _handedOverController.text = _data['handedOver'] ?? '';
+    _commentsController.text = _data['comments'] ?? '';
+    _additionalCommentsController.text = _data['additionalComments'] ?? '';
+  }
+
+  Future<void> _saveChanges() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    try {
+      final updates = {
+        'status': _statusController.text == "PENDING" ? "Pending" : "Completed",
+        'handedOver': _handedOverController.text,
+        'comments': _commentsController.text,
+        'additionalComments': _additionalCommentsController.text,
+      };
+
+      if (widget.collectionName == 'archived_inwards') {
+        // Direct document update
+        await FirebaseFirestore.instance
+            .collection('archived_inwards')
+            .doc(widget.docId)
+            .update(updates);
+      } else if (widget.collectionName == 'archived_grouped_inwards') {
+        // Update nested document
+        final fieldKey = _data['fieldKey'] as String?;
+        if (fieldKey != null) {
+          await FirebaseFirestore.instance
+              .collection('archived_grouped_inwards')
+              .doc(widget.docId)
+              .update({
+            '$fieldKey.status': updates['status'],
+            '$fieldKey.handedOver': updates['handedOver'],
+            '$fieldKey.comments': updates['comments'],
+            '$fieldKey.additionalComments': updates['additionalComments'],
+          });
+        }
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Updated successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Archived Inward: $docId'),
+        title: Text('Archived Inward: ${widget.docId}'),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
-        child: ListView(
-          children: data.entries.map((entry) {
-            return ListTile(
-              title: Text(entry.key),
-              subtitle: Text(entry.value.toString()),
-            );
-          }).toList(),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Display read-only fields
+              ..._data.entries
+                  .where((e) => ![
+                        'status',
+                        'handedOver',
+                        'comments',
+                        'additionalComments',
+                        'docId',
+                        'collectionName',
+                        'fieldKey',
+                      ].contains(e.key))
+                  .map((entry) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: Text(
+                          '${_formatTitle(entry.key)}: ${entry.value}',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      )),
+
+              const SizedBox(height: 20),
+
+              // Editable fields
+              _buildEditableField('status', _statusController),
+              const SizedBox(height: 12),
+              _buildEditableField('handedOver', _handedOverController),
+              const SizedBox(height: 12),
+              _buildEditableField('comments', _commentsController, maxLines: 3),
+              const SizedBox(height: 12),
+              _buildEditableField('additionalComments', _additionalCommentsController, maxLines: 3),
+
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _saveChanges,
+                  child: const Text('Save Changes'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Widget _buildEditableField(String label, TextEditingController controller, {int maxLines = 1}) {
+    if (label == 'status') {
+      return DropdownButtonFormField<String>(
+        value: controller.text.isNotEmpty ? controller.text : null,
+        decoration: InputDecoration(
+          labelText: _formatTitle(label),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.grey)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        ),
+        items: const [
+          DropdownMenuItem(value: 'PENDING', child: Text('Pending')),
+          DropdownMenuItem(value: 'COMPLETED', child: Text('Completed')),
+        ],
+        onChanged: (value) {
+          if (value != null) {
+            setState(() {
+              controller.text = value;
+            });
+          }
+        },
+        validator: (value) => value == null || value.isEmpty ? 'Please select a status' : null,
+      );
+    } else {
+      return TextFormField(
+        controller: controller,
+        maxLines: maxLines,
+        decoration: InputDecoration(
+          labelText: _formatTitle(label),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.grey)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        ),
+        validator: (value) {
+          if (label == 'handedOver' && (value == null || value.isEmpty)) {
+            return 'Please enter Handed Over';
+          }
+          return null;
+        },
+      );
+    }
+  }
+
+  String _formatTitle(String key) {
+    final regex = RegExp(r'(?<=[a-z])[A-Z]');
+    String spaced = key.replaceAll('_', ' ').replaceAllMapped(regex, (match) => ' ${match.group(0)}');
+    return spaced[0].toUpperCase() + spaced.substring(1);
+  }
+
+  @override
+  void dispose() {
+    _statusController.dispose();
+    _handedOverController.dispose();
+    _commentsController.dispose();
+    _additionalCommentsController.dispose();
+    super.dispose();
   }
 }
