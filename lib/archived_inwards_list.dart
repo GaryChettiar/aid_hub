@@ -515,11 +515,11 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.picture_as_pdf),
-                  label: const Text('Download PDF'),
-                  onPressed: () => _generatePdfAndPrint(filtered),
-                ),
+                // ElevatedButton.icon(
+                //   icon: const Icon(Icons.picture_as_pdf),
+                //   label: const Text('Download PDF'),
+                //   onPressed: () => _generatePdfAndPrint(filtered),
+                // ),
                 const SizedBox(width: 16),
                 ElevatedButton.icon(
                   icon: const Icon(Icons.table_chart),
