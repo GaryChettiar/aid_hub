@@ -761,7 +761,7 @@ class _ArchivedInwardDetailsPageState
           });
         }
       }
-
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ArchivedInwardsListPage()) );
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Updated successfully')));
     } catch (e) {
