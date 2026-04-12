@@ -60,16 +60,62 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
   Future<void> _loadAllData() async {
     setState(() => _isLoading = true);
 
-    final descRefSnap =
-        await FirebaseFirestore.instance.collection('descReferences').get();
-    final descriptionsSnap =
-        await FirebaseFirestore.instance.collection('descriptions').get();
+    final firestore = FirebaseFirestore.instance;
+
+    // ── Load Descriptions (Batched) ──────────────────────────────────────────
+    final Set<String> descriptions = {};
+    try {
+      final metaDoc =
+          await firestore.collection('descriptions').doc('descMeta').get();
+      if (metaDoc.exists) {
+        final batchCounts =
+            Map<String, dynamic>.from(metaDoc.data()?['batchCounts'] ?? {});
+        for (final batchName in batchCounts.keys) {
+          final batchDoc =
+              await firestore.collection('descriptions').doc(batchName).get();
+          final data = batchDoc.data();
+          if (data != null) {
+            final int count = batchCounts[batchName];
+            for (int i = 1; i <= count; i++) {
+              final d = data['ddesc$i']?.toString() ?? '';
+              if (d.isNotEmpty) descriptions.add(d);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error loading descriptions: $e');
+    }
+
+    // ── Load Desc References (Batched) ───────────────────────────────────────
+    final Set<String> descRefs = {};
+    try {
+      final metaDoc =
+          await firestore.collection('descref').doc('descrefMeta').get();
+      if (metaDoc.exists) {
+        final batchCounts =
+            Map<String, dynamic>.from(metaDoc.data()?['batchCount'] ?? {});
+        for (final batchName in batchCounts.keys) {
+          final batchDoc =
+              await firestore.collection('descref').doc(batchName).get();
+          final data = batchDoc.data();
+          if (data != null) {
+            final int count = batchCounts[batchName];
+            for (int i = 1; i <= count; i++) {
+              final r = data['ref$i']?.toString() ?? '';
+              if (r.isNotEmpty) descRefs.add(r);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error loading descRefs: $e');
+    }
 
     final List<Map<String, dynamic>> results = [];
 
-    final snapshot1 = await FirebaseFirestore.instance
-        .collection('archived_inwards')
-        .get();
+    // ── Load Flat Archived Inwards ───────────────────────────────────────────
+    final snapshot1 = await firestore.collection('archived_inwards').get();
     for (var doc in snapshot1.docs) {
       final data = Map<String, dynamic>.from(doc.data());
       data['docId'] = doc.id;
@@ -77,9 +123,9 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
       results.add(data);
     }
 
-    final snapshot2 = await FirebaseFirestore.instance
-        .collection('archived_grouped_inwards')
-        .get();
+    // ── Load Grouped Archived Inwards ────────────────────────────────────────
+    final snapshot2 =
+        await firestore.collection('archived_grouped_inwards').get();
     for (var doc in snapshot2.docs) {
       for (var entry in doc.data().entries) {
         if (entry.value is Map) {
@@ -107,14 +153,8 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
 
     setState(() {
       _allData = results;
-      allDescReferences = descRefSnap.docs
-          .map((doc) => doc.data()['value']?.toString() ?? '')
-          .where((v) => v.isNotEmpty)
-          .toSet();
-      allDescriptions = descriptionsSnap.docs
-          .map((doc) => doc.data()['description']?.toString() ?? '')
-          .where((v) => v.isNotEmpty)
-          .toSet();
+      allDescReferences = descRefs;
+      allDescriptions = descriptions;
       _isLoading = false;
     });
   }
@@ -131,7 +171,9 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
               data['descriptionReference'] as String?) &&
           _matchesDescriptionFilter(data['description'] as String?) &&
           _matchesInwardSearch(data['inwardNo'] as String?) &&
-          _matchesSenderSearch(data['senderName'] as String?);
+          (_matchesSenderSearch(data['senderName'] as String?) ||
+              _matchesSenderSearch(data['descriptionReference'] as String?) ||
+              _matchesSenderSearch(data['description'] as String?));
     }).toList();
   }
 
@@ -240,6 +282,7 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
   }
 
   bool _matchesSenderSearch(String? senderName) {
+    // print(senderName);
     if (_senderSearchText.isEmpty) return true;
     return senderName
             ?.toLowerCase()
@@ -294,7 +337,7 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
         onLayout: (PdfPageFormat format) async => pdf.save());
   }
 
-  Future<void> _exportExcel(List<Map<String, dynamic>> docs) async {
+ Future<void> _exportExcel(List<Map<String, dynamic>> docs) async {
     if (docs.isEmpty) {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('No data to export')));
@@ -311,6 +354,11 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
       TextCellValue('Status'),
       TextCellValue('Desc Ref'),
       TextCellValue('Description'),
+      // TextCellValue('Inward Reason'),      // added
+      TextCellValue('Reference'),          // added
+      TextCellValue('Amount'),             // added
+      TextCellValue('Handed Over To'),     // added
+      TextCellValue('Remarks'),            // added
     ]);
 
     for (var doc in docs) {
@@ -321,22 +369,25 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
         TextCellValue(doc['status']?.toString() ?? ''),
         TextCellValue(doc['descriptionReference']?.toString() ?? ''),
         TextCellValue(doc['description']?.toString() ?? ''),
+        // TextCellValue(doc['description']?.toString() ?? ''),      // added (Inward Reason)
+        TextCellValue(doc['billReference']?.toString() ?? ''),    // added
+        TextCellValue(doc['amount']?.toString() ?? ''),           // added
+        TextCellValue(doc['handedOverTo']?.toString() ?? ''),     // added
+        TextCellValue(doc['remarks']?.toString() ?? ''),          // added
       ]);
     }
 
     final fileBytes = Uint8List.fromList(excel.encode()!);
 
     if (kIsWeb) {
-      // On web, pass bytes directly — FilePicker handles the browser download
       await FilePicker.platform.saveFile(
         dialogTitle: 'Save Excel File',
         fileName: 'archived_inwards.xlsx',
         type: FileType.custom,
         allowedExtensions: ['xlsx'],
-        bytes: fileBytes, // <-- required on web
+        bytes: fileBytes,
       );
     } else {
-      // On mobile/desktop, pick a save path then write the file
       final String? outputFile = await FilePicker.platform.saveFile(
         dialogTitle: 'Save Excel File',
         fileName: 'archived_inwards.xlsx',
@@ -409,7 +460,7 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
                 const SizedBox(height: 8),
                 TextField(
                   decoration: InputDecoration(
-                    labelText: 'Search by Sender Name',
+                    labelText: 'Search by Sender Name, Description, Reference',
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20)),
                     prefixIcon: const Icon(Icons.person_search),
@@ -530,6 +581,36 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
             ),
           ),
 
+          // ── Header Row ──────────────────────────────────────────────────
+          Container(
+            color: Colors.grey[200],
+            padding: const EdgeInsets.all(8.0),
+            child: const Row(
+              children: [
+                Expanded(
+                    flex: 2,
+                    child: Text("Inward No",
+                        style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(
+                    flex: 2,
+                    child: Text("Sender Name",
+                        style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(
+                    flex: 2,
+                    child: Text("Date",
+                        style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(
+                    flex: 1,
+                    child: Text("Status",
+                        style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(
+                    flex: 2,
+                    child: Text("Inward Reason",
+                        style: TextStyle(fontWeight: FontWeight.bold))),
+              ],
+            ),
+          ),
+
           // ── List ─────────────────────────────────────────────────────────
           Expanded(
             child: filtered.isEmpty
@@ -570,7 +651,7 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
                                   Expanded(flex: 2, child: Text(senderName)),
                                   Expanded(flex: 2, child: Text(reqDateStr)),
                                   Expanded(
-                                    flex: 2,
+                                    flex: 1,
                                     child: Chip(
                                       padding: const EdgeInsets.all(5),
                                       shape: RoundedRectangleBorder(
@@ -584,8 +665,8 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
                                               color: Colors.black)),
                                     ),
                                   ),
-                                  Expanded(
-                                      flex: 2, child: Text(descReference)),
+                                  // Expanded(
+                                  //     flex: 2, child: Text(descReference)),
                                   Expanded(flex: 2, child: Text(description)),
                                 ],
                               ),
@@ -628,20 +709,22 @@ class _ArchivedInwardDetailsPageState
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _statusController = TextEditingController();
-  final TextEditingController _handedOverController = TextEditingController();
+  final TextEditingController _handedOverToController = TextEditingController();
   final TextEditingController _commentsController = TextEditingController();
-  final TextEditingController _additionalCommentsController =
-      TextEditingController();
+  final TextEditingController _additionalInfoController = TextEditingController();
+  final TextEditingController _remarksController = TextEditingController();
+  final TextEditingController _pendingDaysController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _data = Map<String, dynamic>.from(widget.data);
-    _statusController.text =
-        (_data['status'] ?? '').toString().toUpperCase();
-    _handedOverController.text = _data['handedOver'] ?? '';
+    _statusController.text = (_data['status'] ?? '').toString().toUpperCase();
+    _handedOverToController.text = _data['handedOverTo'] ?? _data['handedOver'] ?? '';
     _commentsController.text = _data['comments'] ?? '';
-    _additionalCommentsController.text = _data['additionalComments'] ?? '';
+    _additionalInfoController.text = _data['additionalInformation'] ?? _data['additionalComments'] ?? '';
+    _remarksController.text = _data['remarks'] ?? '';
+    _pendingDaysController.text = (_data['pendingFromDays'] ?? '').toString();
   }
 
   Future<void> _saveChanges() async {
@@ -650,9 +733,11 @@ class _ArchivedInwardDetailsPageState
       final updates = {
         'status':
             _statusController.text == 'PENDING' ? 'Pending' : 'Completed',
-        'handedOver': _handedOverController.text,
+        'handedOverTo': _handedOverToController.text,
         'comments': _commentsController.text,
-        'additionalComments': _additionalCommentsController.text,
+        'additionalInformation': _additionalInfoController.text,
+        'remarks': _remarksController.text,
+        'pendingFromDays': _pendingDaysController.text,
       };
 
       if (widget.collectionName == 'archived_inwards') {
@@ -668,9 +753,11 @@ class _ArchivedInwardDetailsPageState
               .doc(widget.docId)
               .update({
             '$fieldKey.status': updates['status'],
-            '$fieldKey.handedOver': updates['handedOver'],
+            '$fieldKey.handedOverTo': updates['handedOverTo'],
             '$fieldKey.comments': updates['comments'],
-            '$fieldKey.additionalComments': updates['additionalComments'],
+            '$fieldKey.additionalInformation': updates['additionalInformation'],
+            '$fieldKey.remarks': updates['remarks'],
+            '$fieldKey.pendingFromDays': updates['pendingFromDays'],
           });
         }
       }
@@ -694,45 +781,107 @@ class _ArchivedInwardDetailsPageState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ..._data.entries
-                  .where((e) => ![
-                        'status',
-                        'handedOver',
-                        'comments',
-                        'additionalComments',
-                        'docId',
-                        'collectionName',
-                        'fieldKey',
-                      ].contains(e.key))
-                  .map((entry) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12.0),
-                        child: Text(
-                          '${_formatTitle(entry.key)}: ${entry.value}',
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                      )),
-              const SizedBox(height: 20),
-              _buildEditableField('status', _statusController),
-              const SizedBox(height: 12),
-              _buildEditableField('handedOver', _handedOverController),
-              const SizedBox(height: 12),
-              _buildEditableField('comments', _commentsController,
-                  maxLines: 3),
-              const SizedBox(height: 12),
-              _buildEditableField(
-                  'additionalComments', _additionalCommentsController,
-                  maxLines: 3),
+              _buildSection("Inward Information", [
+                _buildDataRow("Inward No", _data['inwardNo']),
+                _buildDataRow("Date", _data['date']),
+                _buildDataRow("Time", _data['time']),
+                _buildDataRow("Received By", _data['receivedBy']),
+                _buildDataRow("Trust Name", _data['trustName']),
+              ]),
+              _buildSection("Sender Information", [
+                _buildDataRow("Sender Name", _data['senderName']),
+                _buildDataRow("Sender Code", _data['senderCode']),
+                _buildDataRow("Sender Email", _data['senderEmail']),
+                _buildDataRow("Email Type", _data['emailType']),
+              ]),
+              _buildSection("Financials & Documents", [
+                _buildDataRow("Bill No", _data['billNo']),
+                _buildDataRow("Bill Reference", _data['billReference']),
+                _buildDataRow("Amount", _data['amount']),
+                _buildDataRow("Cheque/Trans No", _data['chequeTransactionNo']),
+              ]),
+              _buildSection("Description", [
+                _buildDataRow("Desc Reference", _data['descriptionReference']),
+                _buildDataRow("Description Code", _data['descriptionCode']),
+                _buildDataRow("Inward Reason", _data['description']),
+              ]),
+              _buildSection("Processing & Status", [
+                _buildEditableField('status', _statusController),
+                const SizedBox(height: 12),
+                _buildEditableField('handedOverTo', _handedOverToController),
+                const SizedBox(height: 12),
+                _buildEditableField('comments', _commentsController, maxLines: 2),
+                const SizedBox(height: 12),
+                _buildEditableField('additionalInformation', _additionalInfoController, maxLines: 2),
+                const SizedBox(height: 12),
+                _buildEditableField('remarks', _remarksController, maxLines: 2),
+                const SizedBox(height: 12),
+                _buildEditableField('pendingFromDays', _pendingDaysController),
+              ]),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
                   onPressed: _saveChanges,
-                  child: const Text('Save Changes'),
+                  child: const Text('Save Changes', style: TextStyle(fontSize: 18)),
                 ),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSection(String title, List<Widget> children) {
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+            ),
+            const Divider(),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDataRow(String label, dynamic value) {
+    if (value == null || value.toString().isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              "$label:",
+              style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.grey),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value.toString(),
+              style: const TextStyle(fontSize: 15),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -743,12 +892,12 @@ class _ArchivedInwardDetailsPageState
       return DropdownButtonFormField<String>(
         value: controller.text.isNotEmpty ? controller.text : null,
         decoration: InputDecoration(
-          labelText: _formatTitle(label),
+          labelText: "Status",
           filled: true,
-          fillColor: Colors.white,
+          fillColor: Colors.grey[100],
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Colors.grey)),
+              borderSide: BorderSide.none),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         ),
@@ -769,16 +918,16 @@ class _ArchivedInwardDetailsPageState
       decoration: InputDecoration(
         labelText: _formatTitle(label),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: Colors.grey[100],
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.grey)),
+            borderSide: BorderSide.none),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       ),
       validator: (value) {
-        if (label == 'handedOver' && (value == null || value.isEmpty)) {
-          return 'Please enter Handed Over';
+        if (label == 'handedOverTo' && (value == null || value.isEmpty)) {
+          return 'Please enter Handed Over To';
         }
         return null;
       },
@@ -796,9 +945,11 @@ class _ArchivedInwardDetailsPageState
   @override
   void dispose() {
     _statusController.dispose();
-    _handedOverController.dispose();
+    _handedOverToController.dispose();
     _commentsController.dispose();
-    _additionalCommentsController.dispose();
+    _additionalInfoController.dispose();
+    _remarksController.dispose();
+    _pendingDaysController.dispose();
     super.dispose();
   }
 }
