@@ -173,6 +173,7 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
           _matchesInwardSearch(data['inwardNo'] as String?) &&
           (_matchesSenderSearch(data['senderName'] as String?) ||
               _matchesSenderSearch(data['descriptionReference'] as String?) ||
+               _matchesSenderSearch(data['billReference'] as String?) ||
               _matchesSenderSearch(data['description'] as String?));
     }).toList();
   }
