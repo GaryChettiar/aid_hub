@@ -173,7 +173,7 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
           _matchesInwardSearch(data['inwardNo'] as String?) &&
           (_matchesSenderSearch(data['senderName'] as String?) ||
               _matchesSenderSearch(data['descriptionReference'] as String?) ||
-               _matchesSenderSearch(data['billReference'] as String?) ||
+              _matchesSenderSearch(data['billReference'] as String?) ||
               _matchesSenderSearch(data['description'] as String?));
     }).toList();
   }
@@ -205,7 +205,8 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
     if (date != null) {
       setState(() {
         _customStartDate = date;
-        if (_customEndDate != null) _dateFilterType = DateFilterType.customRange;
+        if (_customEndDate != null)
+          _dateFilterType = DateFilterType.customRange;
       });
     }
   }
@@ -276,9 +277,7 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
 
   bool _matchesInwardSearch(String? inwardNo) {
     if (_inwardSearchText.isEmpty) return true;
-    return inwardNo
-            ?.toLowerCase()
-            .contains(_inwardSearchText.toLowerCase()) ??
+    return inwardNo?.toLowerCase().contains(_inwardSearchText.toLowerCase()) ??
         false;
   }
 
@@ -338,7 +337,7 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
         onLayout: (PdfPageFormat format) async => pdf.save());
   }
 
- Future<void> _exportExcel(List<Map<String, dynamic>> docs) async {
+  Future<void> _exportExcel(List<Map<String, dynamic>> docs) async {
     if (docs.isEmpty) {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('No data to export')));
@@ -356,10 +355,10 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
       TextCellValue('Desc Ref'),
       TextCellValue('Description'),
       // TextCellValue('Inward Reason'),      // added
-      TextCellValue('Reference'),          // added
-      TextCellValue('Amount'),             // added
-      TextCellValue('Handed Over To'),     // added
-      TextCellValue('Remarks'),            // added
+      TextCellValue('Reference'), // added
+      TextCellValue('Amount'), // added
+      TextCellValue('Handed Over To'), // added
+      TextCellValue('Remarks'), // added
     ]);
 
     for (var doc in docs) {
@@ -371,10 +370,10 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
         TextCellValue(doc['descriptionReference']?.toString() ?? ''),
         TextCellValue(doc['description']?.toString() ?? ''),
         // TextCellValue(doc['description']?.toString() ?? ''),      // added (Inward Reason)
-        TextCellValue(doc['billReference']?.toString() ?? ''),    // added
-        TextCellValue(doc['amount']?.toString() ?? ''),           // added
-        TextCellValue(doc['handedOverTo']?.toString() ?? ''),     // added
-        TextCellValue(doc['remarks']?.toString() ?? ''),          // added
+        TextCellValue(doc['billReference']?.toString() ?? ''), // added
+        TextCellValue(doc['amount']?.toString() ?? ''), // added
+        TextCellValue(doc['handedOverTo']?.toString() ?? ''), // added
+        TextCellValue(doc['remarks']?.toString() ?? ''), // added
       ]);
     }
 
@@ -533,8 +532,7 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
                       .map((ref) =>
                           DropdownMenuItem(value: ref, child: Text(ref)))
                       .toList(),
-                  onChanged: (v) =>
-                      setState(() => _selectedDescReference = v),
+                  onChanged: (v) => setState(() => _selectedDescReference = v),
                 ),
                 DropdownButton<String>(
                   hint: const Text('Filter by Description'),
@@ -587,6 +585,7 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
             color: Colors.grey[200],
             padding: const EdgeInsets.all(8.0),
             child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Expanded(
                     flex: 2,
@@ -601,12 +600,20 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
                     child: Text("Date",
                         style: TextStyle(fontWeight: FontWeight.bold))),
                 Expanded(
-                    flex: 1,
+                    flex: 2,
+                    child: Text("Bill Reference",
+                        style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(
+                    flex: 2,
                     child: Text("Status",
                         style: TextStyle(fontWeight: FontWeight.bold))),
                 Expanded(
                     flex: 2,
-                    child: Text("Inward Reason",
+                    child: Text("Desc Reference",
+                        style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(
+                    flex: 2,
+                    child: Text("Description",
                         style: TextStyle(fontWeight: FontWeight.bold))),
               ],
             ),
@@ -643,16 +650,23 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
                           ),
                         ),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Padding(
                               padding: const EdgeInsets.all(8.0),
                               child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Expanded(flex: 2, child: Text(inwardNo)),
                                   Expanded(flex: 2, child: Text(senderName)),
                                   Expanded(flex: 2, child: Text(reqDateStr)),
                                   Expanded(
-                                    flex: 1,
+                                      flex: 2,
+                                      child: Text(
+                                          data['billReference']?.toString() ??
+                                              '')),
+                                  Expanded(
+                                    flex: 2,
                                     child: Chip(
                                       padding: const EdgeInsets.all(5),
                                       shape: RoundedRectangleBorder(
@@ -666,8 +680,7 @@ class _ArchivedInwardsListPageState extends State<ArchivedInwardsListPage> {
                                               color: Colors.black)),
                                     ),
                                   ),
-                                  // Expanded(
-                                  //     flex: 2, child: Text(descReference)),
+                                  Expanded(flex: 2, child: Text(descReference)),
                                   Expanded(flex: 2, child: Text(description)),
                                 ],
                               ),
@@ -704,15 +717,15 @@ class ArchivedInwardDetailsPage extends StatefulWidget {
       _ArchivedInwardDetailsPageState();
 }
 
-class _ArchivedInwardDetailsPageState
-    extends State<ArchivedInwardDetailsPage> {
+class _ArchivedInwardDetailsPageState extends State<ArchivedInwardDetailsPage> {
   late Map<String, dynamic> _data;
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _statusController = TextEditingController();
   final TextEditingController _handedOverToController = TextEditingController();
   final TextEditingController _commentsController = TextEditingController();
-  final TextEditingController _additionalInfoController = TextEditingController();
+  final TextEditingController _additionalInfoController =
+      TextEditingController();
   final TextEditingController _remarksController = TextEditingController();
   final TextEditingController _pendingDaysController = TextEditingController();
 
@@ -721,9 +734,11 @@ class _ArchivedInwardDetailsPageState
     super.initState();
     _data = Map<String, dynamic>.from(widget.data);
     _statusController.text = (_data['status'] ?? '').toString().toUpperCase();
-    _handedOverToController.text = _data['handedOverTo'] ?? _data['handedOver'] ?? '';
+    _handedOverToController.text =
+        _data['handedOverTo'] ?? _data['handedOver'] ?? '';
     _commentsController.text = _data['comments'] ?? '';
-    _additionalInfoController.text = _data['additionalInformation'] ?? _data['additionalComments'] ?? '';
+    _additionalInfoController.text =
+        _data['additionalInformation'] ?? _data['additionalComments'] ?? '';
     _remarksController.text = _data['remarks'] ?? '';
     _pendingDaysController.text = (_data['pendingFromDays'] ?? '').toString();
   }
@@ -732,8 +747,7 @@ class _ArchivedInwardDetailsPageState
     if (!_formKey.currentState!.validate()) return;
     try {
       final updates = {
-        'status':
-            _statusController.text == 'PENDING' ? 'Pending' : 'Completed',
+        'status': _statusController.text == 'PENDING' ? 'Pending' : 'Completed',
         'handedOverTo': _handedOverToController.text,
         'comments': _commentsController.text,
         'additionalInformation': _additionalInfoController.text,
@@ -762,9 +776,10 @@ class _ArchivedInwardDetailsPageState
           });
         }
       }
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ArchivedInwardsListPage()) );
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Updated successfully')));
+      Navigator.pushReplacement(context,
+          MaterialPageRoute(builder: (context) => ArchivedInwardsListPage()));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Updated successfully')));
     } catch (e) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Error updating: $e')));
@@ -811,9 +826,12 @@ class _ArchivedInwardDetailsPageState
                 const SizedBox(height: 12),
                 _buildEditableField('handedOverTo', _handedOverToController),
                 const SizedBox(height: 12),
-                _buildEditableField('comments', _commentsController, maxLines: 2),
+                _buildEditableField('comments', _commentsController,
+                    maxLines: 2),
                 const SizedBox(height: 12),
-                _buildEditableField('additionalInformation', _additionalInfoController, maxLines: 2),
+                _buildEditableField(
+                    'additionalInformation', _additionalInfoController,
+                    maxLines: 2),
                 const SizedBox(height: 12),
                 _buildEditableField('remarks', _remarksController, maxLines: 2),
                 const SizedBox(height: 12),
@@ -829,7 +847,8 @@ class _ArchivedInwardDetailsPageState
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   onPressed: _saveChanges,
-                  child: const Text('Save Changes', style: TextStyle(fontSize: 18)),
+                  child: const Text('Save Changes',
+                      style: TextStyle(fontSize: 18)),
                 ),
               ),
               const SizedBox(height: 20),
@@ -852,7 +871,10 @@ class _ArchivedInwardDetailsPageState
           children: [
             Text(
               title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+              style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue),
             ),
             const Divider(),
             ...children,
@@ -863,7 +885,8 @@ class _ArchivedInwardDetailsPageState
   }
 
   Widget _buildDataRow(String label, dynamic value) {
-    if (value == null || value.toString().isEmpty) return const SizedBox.shrink();
+    if (value == null || value.toString().isEmpty)
+      return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -873,7 +896,8 @@ class _ArchivedInwardDetailsPageState
             width: 120,
             child: Text(
               "$label:",
-              style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.grey),
+              style: const TextStyle(
+                  fontWeight: FontWeight.w600, color: Colors.grey),
             ),
           ),
           Expanded(

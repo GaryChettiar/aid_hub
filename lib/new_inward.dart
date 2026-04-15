@@ -769,9 +769,9 @@ _trustNameController.clear();
       _fetchDescReferences();
       _fetchEmployees();
       
-      if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => Dashboard()) );
-      }
+      // if (mounted) {
+      //   Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => Dashboard()) );
+      // }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to submit request: $e')),
